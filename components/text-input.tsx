@@ -12,27 +12,56 @@ import { Mic, Plus, SendHorizonal } from "lucide-react";
 import Image from "next/image";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 export const TextInput = () => {
   const [text, setText] = useState("");
-  const [rows, setRows] = useState(1);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const maxHeight = 100; // Maximum height in pixels
+
+  // Adjust textarea height based on content
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to get the correct scrollHeight
+    textarea.style.height = "auto";
+    
+    // Calculate the new height (capped at maxHeight)
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    
+    // Apply the new height
+    textarea.style.height = `${newHeight}px`;
+    
+    // Enable or disable scrolling
+    if (newHeight >= maxHeight) {
+      textarea.style.overflowY = "auto";
+    } else {
+      textarea.style.overflowY = "hidden";
+    }
+  };
 
   // Handle textarea change
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setText(value);
-
-    // Calculate rows based on content (rough estimate)
-    const newRows = Math.max(1, Math.ceil(value.length / 50));
-    setRows(newRows > 5 ? 5 : newRows); // Limit to 5 rows max
   };
+
+  // Adjust height whenever text changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [text]);
 
   // Clear text function
   const handleSend = () => {
     console.log("Sending:", text);
     setText("");
-    setRows(1);
+    
+    // Reset height after sending
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.overflowY = "hidden";
+    }
   };
 
   return (
@@ -85,14 +114,20 @@ export const TextInput = () => {
           </SelectContent>
         </Select>
       </div>
+      
       {/* Textarea section */}
       <div className="relative">
         <Textarea
-          className="w-full h-full py-2 px-3 rounded-none border-none resize-none outline-none placeholder:text-xs placeholder:text-[#1D1C1D80] bg-white transition-all duration-200"
+          ref={textareaRef}
+          className="w-full py-2 px-3 rounded-none border-none resize-none outline-none placeholder:text-xs placeholder:text-[#1D1C1D80] bg-white transition-all duration-200 overflow-hidden"
           placeholder="Type to translate..."
-          rows={rows}
           value={text}
           onChange={handleTextChange}
+          style={{
+            minHeight: "50px", // Minimum height
+            height: "auto", // Let it grow
+            maxHeight: `${maxHeight}px`, // Maximum height
+          }}
         />
       </div>
 
