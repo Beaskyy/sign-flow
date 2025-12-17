@@ -17,12 +17,12 @@ export async function middleware(request: NextRequest) {
 
   // Define paths that should be considered public (accessible without authentication)
   const publicPaths = [
-    // "/login",
-    // "/welcome",
-    // "/verify-email",
+    "/login",
+    "/welcome",
+    "/verify-email",
     "/otp-verification",
-    // "/recover-password",
-    // "/reset-password",
+    "/recover-password",
+    "/reset-password",
     
   ];
 
@@ -38,10 +38,10 @@ export async function middleware(request: NextRequest) {
   });
 
   // If the user is trying to access a protected route without authentication, redirect to login
-  // if (!isPublicPath && !token) {
-  //   const loginUrl = new URL("/login", request.url);
-  //   return NextResponse.redirect(loginUrl);
-  // }
+  if (!isPublicPath && !token) {
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
 
   // If the user is authenticated and trying to access a public path, redirect to home
   if (isPublicPath && token) {

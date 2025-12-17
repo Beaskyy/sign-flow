@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/providers/SessionProvider";
-import { Provider } from "@/providers/provider";
+import { Providers } from "@/providers/provider";
 import { ContextProvider } from "@/providers/ContextProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ClientOnly from "@/components/client-only";
@@ -24,11 +24,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <ClientOnly>
           {/* <SessionProvider> */}
-            <Provider>
+            <Providers>
               <TooltipProvider delayDuration={150}>
                 <ContextProvider>{children}</ContextProvider>
               </TooltipProvider>
-            </Provider>
+            </Providers>
           {/* </SessionProvider> */}
         </ClientOnly>
       </body>
