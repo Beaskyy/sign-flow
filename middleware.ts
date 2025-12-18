@@ -19,10 +19,10 @@ export async function middleware(request: NextRequest) {
   const publicPaths = [
     "/login",
     "/welcome",
-    "/verify-email",
-    "/otp-verification",
-    "/recover-password",
-    "/reset-password",
+    // "/verify-email",
+    // "/otp-verification",
+    // "/recover-password",
+    // "/reset-password",
     
   ];
 
