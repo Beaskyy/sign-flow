@@ -1,19 +1,28 @@
 "use client";
 
 import { useMedia } from "react-use";
+import { useRouter } from "next/navigation";
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Ellipsis, Menu, Plus } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { ChatSection } from "./chat-section";
 import { SidebarProfile } from "./sidebar-profile";
+import { useConversations } from "@/hooks/useConversation";
+import { useUpdateConversation } from "@/hooks/useUpdateConversation";
+import { useDeleteConversation } from "@/hooks/useDeleteConversation";
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeLink, setActiveLink] = useState("");
+  const router = useRouter();
+
+  const { data: conversations, isLoading } = useConversations();
+  const updateConversation = useUpdateConversation();
+  const deleteConversation = useDeleteConversation();
 
   const isMobile = useMedia("(max-width: 1024px)", false);
 
@@ -21,6 +30,69 @@ export const Navigation = () => {
     setActiveLink(name);
     setIsOpen(false);
   };
+
+  const handleRename = async (id: string, newTitle: string) => {
+    try {
+      await updateConversation.mutateAsync({ id, title: newTitle });
+    } catch (error) {
+      console.error("Failed to rename conversation:", error);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteConversation.mutateAsync(id);
+    } catch (error) {
+      console.error("Failed to delete conversation:", error);
+    }
+  };
+
+  const handleSelect = (id: string) => {
+    router.push(`/conversations/${id}`);
+    setIsOpen(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center gap-1">
+        <Menu className="size-5 text-[#333333]" />
+        <p className="text-[#333333] text-sm font-medium tracking-[-0.4px]">
+          Signflow
+        </p>
+      </div>
+    );
+  }
+
+  // Group conversations by time period (same logic as Sidebar)
+  const today =
+    conversations?.filter((conv) => {
+      const date = new Date(conv.created_at);
+      const now = new Date();
+      return date.toDateString() === now.toDateString();
+    }) || [];
+
+  const yesterday =
+    conversations?.filter((conv) => {
+      const date = new Date(conv.created_at);
+      const now = new Date();
+      const yesterdayDate = new Date(now);
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      return date.toDateString() === yesterdayDate.toDateString();
+    }) || [];
+
+  const previous7Days =
+    conversations?.filter((conv) => {
+      const date = new Date(conv.created_at);
+      const now = new Date();
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return (
+        date > sevenDaysAgo &&
+        date.toDateString() !== now.toDateString() &&
+        date.toDateString() !==
+          new Date(now.setDate(now.getDate() - 1)).toDateString()
+      );
+    }) || [];
 
   if (isMobile) {
     return (
@@ -33,7 +105,7 @@ export const Navigation = () => {
         </SheetTrigger>
         <SheetContent
           side="left"
-          className="flex flex-col justify-between h-screen p-3"
+          className="flex flex-col justify-between h-screen p-3 bg-[#F5F5F5]"
         >
           <div className="flex flex-col gap-4">
             {/* Logo Section */}
@@ -58,67 +130,30 @@ export const Navigation = () => {
               </div>
               <p className="text-[11px] font-medium text-[#D4AF37]">New chat</p>
             </Button>
-            {/* Chat History Section - Reusable component */}
-            {[
-              { title: "Today", items: 3 },
-              { title: "Yesterday", items: 2 },
-              { title: "Last 7 Days", items: 2 },
-            ].map((section, idx) => (
+            {/* Chat History Section - Using real data */}
+            <div className="space-y-4">
               <ChatSection
-                key={idx}
-                title={section.title}
-                itemCount={section.items}
+                title="Today"
+                conversations={today}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onSelect={handleSelect}
               />
-            ))}
-            {/* <div>
-              <div className="py-2 pl-1 pr-4">
-                <p className="text-[11px] text-[#7C7C7C]">Today</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333]">
-                  <p className="text-[10px]">A statement or more info</p>
-                  <Ellipsis className="size-3" />
-                </div>
-                <div className="flex justify-between items-center py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333]">
-                  <p className="text-[10px]">A statement or more info</p>
-                  <Ellipsis className="size-3" />
-                </div>
-                <div className="flex justify-between items-center py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333]">
-                  <p className="text-[10px]">A statement or more info</p>
-                  <Ellipsis className="size-3" />
-                </div>
-              </div>
+              <ChatSection
+                title="Yesterday"
+                conversations={yesterday}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onSelect={handleSelect}
+              />
+              <ChatSection
+                title="Previous 7 Days"
+                conversations={previous7Days}
+                onRename={handleRename}
+                onDelete={handleDelete}
+                onSelect={handleSelect}
+              />
             </div>
-            <div>
-              <div className="py-2 pl-1 pr-4">
-                <p className="text-[11px] text-[#7C7C7C]">Yesterday</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333]">
-                  <p className="text-[10px]">A statement or more info</p>
-                  <Ellipsis className="size-3" />
-                </div>
-                <div className="flex justify-between items-center py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333]">
-                  <p className="text-[10px]">A statement or more info</p>
-                  <Ellipsis className="size-3" />
-                </div>
-              </div>
-            </div>
-            <div>
-              <div className="py-2 pl-1 pr-4">
-                <p className="text-[11px] text-[#7C7C7C]">Last 7 Days</p>
-              </div>
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between items-center py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333]">
-                  <p className="text-[10px]">A statement or more info</p>
-                  <Ellipsis className="size-3" />
-                </div>
-                <div className="flex justify-between items-center py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333]">
-                  <p className="text-[10px]">A statement or more info</p>
-                  <Ellipsis className="size-3" />
-                </div>
-              </div>
-            </div> */}
           </div>
           <SidebarProfile />
         </SheetContent>
