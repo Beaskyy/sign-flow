@@ -127,6 +127,8 @@ const Sidebar = () => {
     null
   );
 
+  console.log(conversations, 'conversations')
+
   const handleRename = async (id: string, newTitle: string) => {
     try {
       await updateConversation.mutateAsync({ id, title: newTitle });
