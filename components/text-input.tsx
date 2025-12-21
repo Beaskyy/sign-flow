@@ -13,27 +13,41 @@ import Image from "next/image";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { useState, useRef, useEffect } from "react";
+import { useCreateConversation } from "@/hooks/useCreateConversation";
+import { useRouter } from "next/navigation";
+import { useTextToSignWithWebSocket } from "@/hooks/useTextToSignWebSocket";
 
-export const TextInput = () => {
+interface TextInputProps {
+  conversationId?: string;
+  onMessageSent?: (message: string, data: any) => void;
+}
+
+export const TextInput = ({ conversationId, onMessageSent }: TextInputProps) => {
   const [text, setText] = useState("");
+  const [selectedLanguage, setSelectedLanguage] = useState("nigeria");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const maxHeight = 100; // Maximum height in pixels
+  const maxHeight = 100;
 
-  // Adjust textarea height based on content
+  const router = useRouter();
+  const createConversation = useCreateConversation();
+  const {
+    translate,
+    isTranslating,
+    httpError,
+    isConnected,
+    wsMessage,
+    wsError,
+    translationData,
+  } = useTextToSignWithWebSocket();
+
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    // Reset height to get the correct scrollHeight
     textarea.style.height = "auto";
-    
-    // Calculate the new height (capped at maxHeight)
     const newHeight = Math.min(textarea.scrollHeight, maxHeight);
-    
-    // Apply the new height
     textarea.style.height = `${newHeight}px`;
-    
-    // Enable or disable scrolling
+
     if (newHeight >= maxHeight) {
       textarea.style.overflowY = "auto";
     } else {
@@ -41,37 +55,106 @@ export const TextInput = () => {
     }
   };
 
-  // Handle textarea change
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     setText(value);
   };
 
-  // Adjust height whenever text changes
   useEffect(() => {
     adjustTextareaHeight();
   }, [text]);
 
-  // Clear text function
-  const handleSend = () => {
-    console.log("Sending:", text);
-    setText("");
-    
-    // Reset height after sending
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-      textareaRef.current.style.overflowY = "hidden";
+  const handleSend = async () => {
+    if (!text.trim()) return;
+
+    try {
+      // If we have a conversationId, use it directly
+      if (conversationId) {
+        console.log("🔄 Sending translation to existing conversation:", conversationId);
+        
+        const response = await translate({
+          text,
+          conversation_id: conversationId,
+        });
+
+        console.log("✅ Translation initiated:", response);
+
+        // Call the callback if provided
+        if (onMessageSent) {
+          onMessageSent(text, response);
+        }
+      } else {
+        // Only create new conversation if we're NOT in a conversation page
+        console.log("📝 Creating new conversation...");
+        const newConversation = await createConversation.mutateAsync({
+          title: text.trim().slice(0, 50) + (text.length > 50 ? "..." : ""),
+        });
+
+        console.log("✅ New conversation created:", newConversation.id);
+
+        // Send translation with the new conversation ID
+        const response = await translate({
+          text,
+          conversation_id: newConversation.id,
+        });
+
+        console.log("✅ Translation initiated:", response);
+
+        // Navigate to the new conversation
+        router.push(`/conversations/${newConversation.id}`);
+
+        // Call the callback if provided
+        if (onMessageSent) {
+          onMessageSent(text, response);
+        }
+      }
+
+      // Clear the input
+      setText("");
+
+      // Reset height after sending
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.overflowY = "hidden";
+      }
+    } catch (error) {
+      console.error("❌ Failed to send message:", error);
     }
   };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const isLoading = createConversation.isPending || isTranslating;
+
+  // Log WebSocket updates
+  useEffect(() => {
+    if (wsMessage) {
+      console.log("📨 WebSocket update:", wsMessage);
+    }
+  }, [wsMessage]);
+
+  useEffect(() => {
+    if (translationData) {
+      console.log("📊 Translation data updated:", translationData);
+    }
+  }, [translationData]);
 
   return (
     <div className="relative border border-[#1D1C1D21] rounded-lg min-h-[116px] h-fit">
       <div className="flex justify-between items-center gap-2.5 p-1.5 bg-[#F8F8F8] rounded-t-lg">
         <small className="text-[8px] text-[#D4AF37] font-semibold uppercase">
           Translate with Signflow AI
+          {isConnected && (
+            <span className="ml-2 text-green-600">● Connected</span>
+          )}
         </small>
 
-        <Select defaultValue="nigeria">
+        <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
           <SelectTrigger className="w-fit border-none bg-transparent">
             <SelectValue />
           </SelectTrigger>
@@ -98,7 +181,7 @@ export const TextInput = () => {
                 </small>
               </div>
             </SelectItem>
-            <SelectItem value="nigeria" defaultChecked>
+            <SelectItem value="nigeria">
               <div className="flex items-center gap-1">
                 <Image
                   src="/nigeria.svg"
@@ -114,7 +197,7 @@ export const TextInput = () => {
           </SelectContent>
         </Select>
       </div>
-      
+
       {/* Textarea section */}
       <div className="relative">
         <Textarea
@@ -123,13 +206,33 @@ export const TextInput = () => {
           placeholder="Type to translate..."
           value={text}
           onChange={handleTextChange}
+          onKeyPress={handleKeyPress}
+          disabled={isLoading}
           style={{
-            minHeight: "50px", // Minimum height
-            height: "auto", // Let it grow
-            maxHeight: `${maxHeight}px`, // Maximum height
+            minHeight: "50px",
+            height: "auto",
+            maxHeight: `${maxHeight}px`,
           }}
         />
       </div>
+
+      {/* Error message */}
+      {(httpError || wsError) && (
+        <div className="px-3 pb-2">
+          <p className="text-[10px] text-red-500">
+            {httpError?.message || wsError}
+          </p>
+        </div>
+      )}
+
+      {/* Translation status */}
+      {translationData?.status === 'processing' && (
+        <div className="px-3 pb-2">
+          <p className="text-[10px] text-blue-500">
+            {translationData.message || 'Processing translation...'}
+          </p>
+        </div>
+      )}
 
       {/* Plus and Mic icons positioned absolutely at the bottom left */}
       <div className="flex justify-between items-center gap-4 p-1.5">
@@ -149,9 +252,14 @@ export const TextInput = () => {
         ) : (
           <button
             onClick={handleSend}
-            className="flex justify-center items-center rounded-full size-6 bg-[#D4AF37] hover:bg-[#D4AF37]/90 p-1 cursor-pointer transition-colors"
+            disabled={isLoading}
+            className="flex justify-center items-center rounded-full size-6 bg-[#D4AF37] hover:bg-[#D4AF37]/90 p-1 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <SendHorizonal className="text-white size-4" />
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+            ) : (
+              <SendHorizonal className="text-white size-4" />
+            )}
           </button>
         )}
       </div>
