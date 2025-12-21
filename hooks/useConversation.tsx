@@ -29,7 +29,7 @@ export function useConversation(conversationId: string) {
 
   return useQuery({
     queryKey: ['conversations', conversationId],
-    queryFn: () => apiClient<Conversation>(`/conversations/${conversationId}`, token),
+    queryFn: () => apiClient<Conversation>(`/conversations/${conversationId}/`, token),
     enabled: !!token && !!conversationId,
   })
 }

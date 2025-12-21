@@ -34,65 +34,73 @@ const handler = NextAuth({
         params: {
           prompt: "consent",
           access_type: "offline",
-          response_type: "code",
-        },
-      },
+          response_type: "code"
+        }
+      }
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, account, user }) {
-
-
+      console.log("🔐 JWT callback triggered");
+      
       // ✅ Only run ONCE during Google sign-in
-      if (account?.provider === "google" && account.id_token) {
+      if (account?.provider === "google" && account.access_token) {
         console.log("🔄 Processing Google authentication...");
-        console.log(
-          "ID Token present:",
-          account.id_token.substring(0, 20) + "..."
-        );
-
+        console.log("Access Token present:", account.access_token.substring(0, 20) + "...");
+        
         try {
-          const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/google`;
+          const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/`; // ✅ Added /api prefix
           console.log("🌐 Calling backend API:", apiUrl);
-
+          console.log("📤 Request body:", JSON.stringify({ access_token: account.access_token }));
+          
           const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              "Accept": "application/json",
             },
-            body: JSON.stringify({ access_token: account.access_token }),
+            body: JSON.stringify({ 
+              access_token: account.access_token 
+            }),
           });
 
-          // 🔐 IMPORTANT: read text first
+          console.log("📥 Response status:", response.status);
+          console.log("📥 Response status text:", response.statusText);
+
+          // Read response text
           const text = await response.text();
+          console.log("📥 Raw response text:", text);
 
           if (!response.ok) {
             console.error("❌ Backend error response:", {
               status: response.status,
               statusText: response.statusText,
-              body: text,
+              body: text
             });
             return token; // ⛔ prevent crash
           }
 
           console.log("✅ Backend API call successful");
-
+          
           try {
             const data = JSON.parse(text);
-            console.log(
-              "📊 Parsed response data:",
-              JSON.stringify(data, null, 2)
-            );
-
+            console.log("📊 Parsed response data:", JSON.stringify(data, null, 2));
+            
+            console.log("📧 Beasky email:", data);
             // Check the structure of the response
-            if (data && data.data) {
-              token.accessToken = data.data.access;
-              token.sub = String(data.data.user.pk);
+            if (data) {
+              console.log("🔑 Access token received:", data.access ? "Yes" : "No");
+              console.log("👤 User PK:", data.user?.pk);
+              console.log("👤 User name:", data.user?.fullname);
+              console.log("📧 User email:", data.user?.email);
+              
+              token.accessToken = data.tokens.access;
+              token.sub = String(data.user.pk);
               token.user = {
-                id: data.data.user.pk,
-                name: data.data.user.fullname,
-                email: data.data.user.email,
+                id: String(data.user.pk),
+                name: data.user.fullname,
+                email: data.user.email,
               };
             } else {
               console.warn("⚠️ Unexpected response structure:", data);
@@ -107,68 +115,58 @@ const handler = NextAuth({
             console.error("Error details:", {
               name: error.name,
               message: error.message,
-              stack: error.stack,
+              stack: error.stack
             });
           }
           return token;
         }
       }
-
+    
       // ✅ Persist values for future calls
       if (user) {
         console.log("💾 Persisting user data in token");
         token.accessToken = user.accessToken ?? token.accessToken;
         token.user = user ?? token.user;
       }
-
-      console.log(
-        "🔄 Final token before returning:",
-        JSON.stringify(token, null, 2)
-      );
+      
+      console.log("🔄 Final token before returning:", JSON.stringify(token, null, 2));
       return token;
     },
-
+    
     async session({ session, token }) {
+      console.log("🔑 Session callback triggered");
+      
       if (session.user) {
         session.user.id = token.sub;
       }
-
+      
       if (token.accessToken) {
-        session.accessToken = token.accessToken;
+        session.accessToken = token.accessToken as string;
       }
-
+      
       if (token.user) {
-        session.user = token.user;
+        session.user = {
+          ...session.user,
+          ...token.user
+        };
       }
-
+      
       console.log("✅ Final session object:", JSON.stringify(session, null, 2));
       return session;
     },
-
-    // Optional: Add signIn callback for additional logging
+    
     async signIn({ account, profile }) {
+      console.log("👤 SignIn callback triggered");
+      console.log("SignIn account:", JSON.stringify(account, null, 2));
+      console.log("SignIn profile:", JSON.stringify(profile, null, 2));
       return true;
     },
   },
   pages: {
     signIn: "/login",
   },
-
-  // Enable debug mode for NextAuth logs
-  debug: process.env.NODE_ENV === "development",
-
-  // Add logger configuration
-  logger: {
-    error(code, metadata) {
-      console.error("❌ NextAuth Error:", code, metadata);
-    },
-    warn(code) {
-      console.warn("⚠️ NextAuth Warning:", code);
-    },
-    debug(code, metadata) {
-      console.debug("🐛 NextAuth Debug:", code, metadata);
-    },
-  },
+  
+  debug: process.env.NODE_ENV === 'development',
 });
 
 export { handler as GET, handler as POST };

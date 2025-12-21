@@ -165,7 +165,7 @@ export const ChatItem = ({ id, title, onRename, onDelete, onSelect }: ChatItemPr
   };
 
   return (
-    <button 
+    <div 
       onClick={() => onSelect?.(id)}
       className="flex items-center justify-between w-full py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333] transition-colors"
     >
@@ -287,6 +287,6 @@ export const ChatItem = ({ id, title, onRename, onDelete, onSelect }: ChatItemPr
           </DialogHeader>
         </DialogContent>
       </Dialog>
-    </button>
+    </div>
   );
 };
