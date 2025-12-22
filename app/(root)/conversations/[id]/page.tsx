@@ -39,7 +39,7 @@ export default function ConversationPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] bg-white">
       {/* Header */}
-      <div className="px-6 py-4 border-b bg-white">
+      <div className="px-6 pb-4 border-b bg-white">
         <h1 className="text-xl font-bold text-gray-900">
           {isLoading ? "Loading..." : conversation?.title || "Untitled Conversation"}
         </h1>
