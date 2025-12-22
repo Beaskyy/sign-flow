@@ -19,11 +19,6 @@ export async function middleware(request: NextRequest) {
   const publicPaths = [
     "/login",
     "/welcome",
-    // "/verify-email",
-    // "/otp-verification",
-    // "/recover-password",
-    // "/reset-password",
-    
   ];
 
   // Check if the current path is a public path
@@ -53,17 +48,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Specify the routes that the middleware should apply to.
-  // This implicitly excludes static assets, _next/static, _next/image, and api routes.
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - files with extensions (static assets)
-     */
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)",
   ],
 };

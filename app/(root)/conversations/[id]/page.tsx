@@ -6,7 +6,9 @@ import { useParams } from "next/navigation";
 
 export default function ConversationPage() {
   const params = useParams();
-  const conversationId = params?.id as string | undefined;
+  const conversationId = params?.id as string;
+
+  console.log("🔍 Current conversationId from params:", conversationId);
 
   const {
     data: conversation,
@@ -37,6 +39,9 @@ export default function ConversationPage() {
                 <p className="text-sm text-gray-500 mt-1">
                   Created {new Date(conversation.created_at).toLocaleDateString()}
                 </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  ID: {conversationId}
+                </p>
               </div>
 
               {/* Messages would go here */}
@@ -49,7 +54,7 @@ export default function ConversationPage() {
             </div>
           ) : (
             <div className="text-center text-gray-500 mt-8">
-              Start a conversation by typing below
+              Conversation not found
             </div>
           )}
         </div>
@@ -58,11 +63,12 @@ export default function ConversationPage() {
       {/* Input at the bottom */}
       <div className="p-4 border-t bg-white">
         <div className="max-w-4xl mx-auto">
+          {/* IMPORTANT: Always pass conversationId, even if conversation is loading */}
           <TextInput
             conversationId={conversationId}
-            onMessageSent={(message) => {
-              console.log("Message sent:", message);
-              // You can add additional logic here like scrolling to bottom
+            onMessageSent={(message, data) => {
+              console.log("✅ Message sent:", message);
+              console.log("📊 Response data:", data);
             }}
           />
         </div>

@@ -23,6 +23,7 @@ interface TextInputProps {
 }
 
 export const TextInput = ({ conversationId, onMessageSent }: TextInputProps) => {
+  console.log("🎯 TextInput rendered with conversationId:", conversationId);
   const [text, setText] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("nigeria");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -67,6 +68,10 @@ export const TextInput = ({ conversationId, onMessageSent }: TextInputProps) => 
   const handleSend = async () => {
     if (!text.trim()) return;
 
+    console.log("🚀 handleSend called");
+  console.log("  - conversationId prop:", conversationId);
+  console.log("  - text:", text);
+
     try {
       // If we have a conversationId, use it directly
       if (conversationId) {
@@ -86,6 +91,7 @@ export const TextInput = ({ conversationId, onMessageSent }: TextInputProps) => 
       } else {
         // Only create new conversation if we're NOT in a conversation page
         console.log("📝 Creating new conversation...");
+        console.log("📝 No conversationId - Creating new conversation...");
         const newConversation = await createConversation.mutateAsync({
           title: text.trim().slice(0, 50) + (text.length > 50 ? "..." : ""),
         });
