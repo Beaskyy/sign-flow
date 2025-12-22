@@ -3,13 +3,25 @@
 import { TextInput } from "@/components/text-input";
 import { useConversation } from "@/hooks/useConversation";
 import { useParams } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
+import { SignLanguageModal } from "@/components/sign-language-modal";
 
 export default function ConversationPage() {
   const params = useParams();
   const conversationId = params?.id as string;
   const scrollRef = useRef<HTMLDivElement>(null);
+
+    // State to handle the modal
+    const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  
+    const handleOpenViewer = (messageId: string) => {
+      setSelectedMessageId(messageId);
+      setIsModalOpen(true);
+    };
+  
 
   const {
     data: conversation,
@@ -54,7 +66,7 @@ export default function ConversationPage() {
         ) : conversation?.messages && conversation.messages.length > 0 ? (
           <div className="max-w-4xl mx-auto space-y-8">
             {conversation.messages.map((message: any) => (
-              <div key={message.id} className="flex flex-col gap-3">
+              <div key={message.id} className="flex flex-col gap-2">
                 
                 {/* User Message (Input) */}
                 <div className="flex justify-end">
@@ -78,7 +90,7 @@ export default function ConversationPage() {
                     </div>
 
                     {message.status === 'completed' && (
-                      <div className="mt-2 p-2 bg-gray-50 rounded text-[11px] text-gray-600 border-l-2 border-[#D4AF37]">
+                      <div  onClick={() => handleOpenViewer(message.id)} className="mt-2 p-2 bg-gray-50 rounded text-[11px] text-gray-600 border-l-2 border-[#D4AF37] cursor-pointer">
                         Translation ready for viewing
                       </div>
                     )}
@@ -96,6 +108,7 @@ export default function ConversationPage() {
         )}
       </div>
 
+
       {/* Input at the bottom */}
       <div className="p-4 border-t bg-white">
         <div className="max-w-4xl mx-auto">
@@ -109,6 +122,13 @@ export default function ConversationPage() {
           />
         </div>
       </div>
+
+      {/* The 3D Modal */}
+      <SignLanguageModal 
+        messageId={selectedMessageId}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }
