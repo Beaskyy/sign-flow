@@ -4,12 +4,26 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
 
+interface Message {
+  id: string;
+  conversation_id: string;
+  message_type: string;
+  status: string;
+  input_preview: string;
+  output_preview: string;
+  created_at: string;
+  completed_at: string;
+  message_type_display: string;
+  status_display: string;
+}
+
 interface Conversation {
-  id: string
-  title?: string
-  created_at: string
-  updated_at: string
-  // Add other conversation fields
+  id: string;
+  title?: string;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+  messages: Message[]; // Important: Added this
 }
 
 interface ConversationsResponse {
