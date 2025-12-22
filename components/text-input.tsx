@@ -38,7 +38,8 @@ export const TextInput = ({
   const createConversation = useCreateConversation();
   const textToSign = useTextToSign();
 
-  const { isConnected, wsMessage, wsError, translationData } =
+  // @ts-ignore
+  const { isConnected, wsError, translationData } =
     useTextToSignWithWebSocket();
 
   const adjustTextareaHeight = () => {
