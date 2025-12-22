@@ -59,7 +59,7 @@ export function useTextToSignWithWebSocket() {
       if (response.websocket) {
         // Append user ID or conversation ID to websocket URL if needed
         const wsUrl = response.websocket.replace('ws://localhost:8000', 'wss://signai-backend-kt7u.onrender.com')
-        setWebsocketUrl(`${wsUrl}${response.conversation_id}`)
+        setWebsocketUrl(`${wsUrl}`)
       }
       
       return response

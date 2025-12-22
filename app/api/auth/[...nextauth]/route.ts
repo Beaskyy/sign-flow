@@ -1,7 +1,10 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
-// Extend the session type
+/* -------------------------------------------------------------------------- */
+/*                               Type Augments                                */
+/* -------------------------------------------------------------------------- */
+
 declare module "next-auth" {
   interface Session {
     user: {
@@ -11,19 +14,64 @@ declare module "next-auth" {
       image?: string | null;
     };
     accessToken?: string;
-  }
-
-  interface User {
-    accessToken?: string;
+    error?: string;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     accessToken?: string;
+    refreshToken?: string;
+    accessTokenExpires?: number;
     user?: any;
+    error?: string;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*                          Refresh Access Token Helper                        */
+/* -------------------------------------------------------------------------- */
+
+async function refreshAccessToken(token: any) {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh-token/`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          refresh: token.refreshToken,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw data;
+    }
+
+    return {
+      ...token,
+      accessToken: data.access,
+      accessTokenExpires: Date.now() + data.expires_in * 1000,
+      refreshToken: data.refresh ?? token.refreshToken, // supports rotation
+    };
+  } catch (error) {
+    console.error("❌ Failed to refresh access token", error);
+
+    return {
+      ...token,
+      error: "RefreshAccessTokenError",
+    };
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 NextAuth                                   */
+/* -------------------------------------------------------------------------- */
 
 const handler = NextAuth({
   providers: [
@@ -34,139 +82,110 @@ const handler = NextAuth({
         params: {
           prompt: "consent",
           access_type: "offline",
-          response_type: "code"
-        }
-      }
+          response_type: "code",
+        },
+      },
     }),
   ],
+
   secret: process.env.NEXTAUTH_SECRET,
+
+  session: {
+    strategy: "jwt",
+  },
+
   callbacks: {
-    async jwt({ token, account, user }) {
-      console.log("🔐 JWT callback triggered");
-      
-      // ✅ Only run ONCE during Google sign-in
+    /* ------------------------------- JWT ---------------------------------- */
+    async jwt({ token, account }) {
+      /**
+       * FIRST LOGIN:
+       * Google → Your Backend → Your JWTs
+       */
       if (account?.provider === "google" && account.access_token) {
-        console.log("🔄 Processing Google authentication...");
-        console.log("Access Token present:", account.access_token.substring(0, 20) + "...");
-        
         try {
-          const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/auth/google/`; // ✅ Added /api prefix
-          console.log("🌐 Calling backend API:", apiUrl);
-          console.log("📤 Request body:", JSON.stringify({ access_token: account.access_token }));
-          
-          const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-            },
-            body: JSON.stringify({ 
-              access_token: account.access_token 
-            }),
-          });
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/auth/google/`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                access_token: account.access_token,
+              }),
+            }
+          );
 
-          console.log("📥 Response status:", response.status);
-          console.log("📥 Response status text:", response.statusText);
-
-          // Read response text
-          const text = await response.text();
-          console.log("📥 Raw response text:", text);
+          const data = await response.json();
 
           if (!response.ok) {
-            console.error("❌ Backend error response:", {
-              status: response.status,
-              statusText: response.statusText,
-              body: text
-            });
-            return token; // ⛔ prevent crash
+            return token;
           }
 
-          console.log("✅ Backend API call successful");
-          
-          try {
-            const data = JSON.parse(text);
-            console.log("📊 Parsed response data:", JSON.stringify(data, null, 2));
-            
-            console.log("📧 Beasky email:", data);
-            // Check the structure of the response
-            if (data) {
-              console.log("🔑 Access token received:", data.access ? "Yes" : "No");
-              console.log("👤 User PK:", data.user?.pk);
-              console.log("👤 User name:", data.user?.fullname);
-              console.log("📧 User email:", data.user?.email);
-              
-              token.accessToken = data.tokens.access;
-              token.sub = String(data.user.pk);
-              token.user = {
-                id: String(data.user.pk),
-                name: data.user.fullname,
-                email: data.user.email,
-              };
-            } else {
-              console.warn("⚠️ Unexpected response structure:", data);
-            }
-          } catch (parseError) {
-            console.error("❌ Failed to parse JSON response:", parseError);
-            console.error("Raw text that failed to parse:", text);
-          }
+          token.accessToken = data.tokens.access;
+          token.refreshToken = data.tokens.refresh;
+          token.accessTokenExpires =
+            Date.now() + data.tokens.expires_in * 1000;
+
+          token.sub = String(data.user.pk);
+          token.user = {
+            id: String(data.user.pk),
+            name: data.user.fullname,
+            email: data.user.email,
+          };
+
+          return token;
         } catch (error) {
-          console.error("❌ JWT Google callback failed:", error);
-          if (error instanceof Error) {
-            console.error("Error details:", {
-              name: error.name,
-              message: error.message,
-              stack: error.stack
-            });
-          }
           return token;
         }
       }
-    
-      // ✅ Persist values for future calls
-      if (user) {
-        console.log("💾 Persisting user data in token");
-        token.accessToken = user.accessToken ?? token.accessToken;
-        token.user = user ?? token.user;
+
+      /**
+       * TOKEN STILL VALID
+       */
+      if (
+        token.accessTokenExpires &&
+        Date.now() < token.accessTokenExpires
+      ) {
+        return token;
       }
-      
-      console.log("🔄 Final token before returning:", JSON.stringify(token, null, 2));
-      return token;
+
+      /**
+       * TOKEN EXPIRED → REFRESH
+       */
+      return await refreshAccessToken(token);
     },
-    
+
+    /* ----------------------------- SESSION -------------------------------- */
     async session({ session, token }) {
-      console.log("🔑 Session callback triggered");
-      
       if (session.user) {
         session.user.id = token.sub;
       }
-      
-      if (token.accessToken) {
-        session.accessToken = token.accessToken as string;
-      }
-      
+
+      session.accessToken = token.accessToken;
+      session.error = token.error;
+
       if (token.user) {
         session.user = {
           ...session.user,
-          ...token.user
+          ...token.user,
         };
       }
-      
-      console.log("✅ Final session object:", JSON.stringify(session, null, 2));
+
       return session;
     },
-    
-    async signIn({ account, profile }) {
-      console.log("👤 SignIn callback triggered");
-      console.log("SignIn account:", JSON.stringify(account, null, 2));
-      console.log("SignIn profile:", JSON.stringify(profile, null, 2));
+
+    async signIn() {
       return true;
     },
   },
+
   pages: {
     signIn: "/login",
   },
-  
-  debug: process.env.NODE_ENV === 'development',
+
+  debug: process.env.NODE_ENV === "development",
 });
 
 export { handler as GET, handler as POST };

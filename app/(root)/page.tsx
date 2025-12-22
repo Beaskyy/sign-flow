@@ -1,7 +1,6 @@
 "use client"
 
 import { Avatar } from "@/components/avatar";
-import CreateConversationButton from "@/components/conversation";
 import { TextInput } from "@/components/text-input";
 import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "next-auth/react";
@@ -14,7 +13,6 @@ export default function Home() {
         <Button onClick={() => signOut()}>logout</Button>
         <Avatar />
         <TextInput />
-        <CreateConversationButton />
       </div>
     </main>
   );

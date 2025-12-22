@@ -17,10 +17,10 @@ export default function ConversationPage() {
   } = useConversation(conversationId || "");
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
+    <div className="flex flex-col h-[calc(100vh-180px)]">
       {/* Chat messages area */}
-      <div className="flex-1 p-4 overflow-y-auto">
-        <div className="max-w-4xl mx-auto">
+      <div className="w-full flex-1 p-4 overflow-y-auto">
+        <div className="w-full mx-auto">
           {isLoading ? (
             <div className="text-center text-gray-500 mt-8">
               Loading conversation...
@@ -61,7 +61,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Input at the bottom */}
-      <div className="p-4 border-t bg-white">
+      <div className="bg-white">
         <div className="max-w-4xl mx-auto">
           {/* IMPORTANT: Always pass conversationId, even if conversation is loading */}
           <TextInput
