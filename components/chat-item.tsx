@@ -167,7 +167,7 @@ export const ChatItem = ({ id, title, onRename, onDelete, onSelect }: ChatItemPr
   return (
     <div 
       onClick={() => onSelect?.(id)}
-      className="flex items-center justify-between w-full py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333] transition-colors"
+      className="flex items-center justify-between w-full py-1 px-1.5 hover:bg-[#EAEAEA] rounded-[20px] text-[#333333] transition-colors cursor-pointer"
     >
       <p className="lg:text-xs text-[10px] truncate">
         {title}
