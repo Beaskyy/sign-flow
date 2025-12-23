@@ -22,7 +22,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     accessToken?: string;
     refreshToken?: string;
-    accessTokenExpires?: number;
+    accessTokenIssuedAt?: number; // Track when access token was issued
     user?: any;
     error?: string;
   }
@@ -34,6 +34,22 @@ declare module "next-auth/jwt" {
 
 async function refreshAccessToken(token: any) {
   try {
+    console.log("🔄 Refreshing access token...");
+    
+    if (!token.refreshToken) {
+      console.error("❌ No refresh token available");
+      throw new Error("No refresh token");
+    }
+
+    // Check if refresh token is still valid (7 days = 604800000 ms)
+    const refreshTokenIssuedAt = token.accessTokenIssuedAt || Date.now();
+    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+    
+    if (Date.now() - refreshTokenIssuedAt > sevenDaysInMs) {
+      console.error("❌ Refresh token expired (7 days)");
+      throw new Error("Refresh token expired");
+    }
+
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh-token/`,
       {
@@ -50,18 +66,21 @@ async function refreshAccessToken(token: any) {
     const data = await response.json();
 
     if (!response.ok) {
+      console.error("❌ Refresh failed:", data);
       throw data;
     }
 
+    console.log("✅ Access token refreshed");
+    
     return {
       ...token,
       accessToken: data.access,
-      accessTokenExpires: Date.now() + data.expires_in * 1000,
-      refreshToken: data.refresh ?? token.refreshToken, // supports rotation
+      accessTokenIssuedAt: Date.now(), // Reset issuance time
+      refreshToken: data.refresh ?? token.refreshToken, // Use new refresh token if provided
     };
   } catch (error) {
-    console.error("❌ Failed to refresh access token", error);
-
+    console.error("❌ Failed to refresh access token:", error);
+    
     return {
       ...token,
       error: "RefreshAccessTokenError",
@@ -92,11 +111,17 @@ const handler = NextAuth({
 
   session: {
     strategy: "jwt",
+    maxAge: 7 * 24 * 60 * 60, // 7 days - matches refresh token expiry
   },
 
   callbacks: {
     /* ------------------------------- JWT ---------------------------------- */
-    async jwt({ token, account }) {
+    async jwt({ token, account, trigger, session: updateSession }) {
+      // Handle session update if needed
+      if (trigger === "update" && updateSession) {
+        token.user = { ...token.user, ...updateSession };
+      }
+
       /**
        * FIRST LOGIN:
        * Google → Your Backend → Your JWTs
@@ -123,11 +148,11 @@ const handler = NextAuth({
             return token;
           }
 
+          // Store tokens with timestamp
           token.accessToken = data.tokens.access;
           token.refreshToken = data.tokens.refresh;
-          token.accessTokenExpires =
-            Date.now() + data.tokens.expires_in * 1000;
-
+          token.accessTokenIssuedAt = Date.now(); // Track when issued
+          
           token.sub = String(data.user.pk);
           token.user = {
             id: String(data.user.pk),
@@ -135,25 +160,35 @@ const handler = NextAuth({
             email: data.user.email,
           };
 
+          console.log("✅ Initial login - Access token issued at:", new Date(token.accessTokenIssuedAt));
           return token;
         } catch (error) {
+          console.error("❌ Google auth failed:", error);
           return token;
         }
       }
 
       /**
-       * TOKEN STILL VALID
+       * CHECK ACCESS TOKEN EXPIRY (1 hour = 3600000 ms)
+       * We'll check if token was issued more than 1 hour ago
        */
-      if (
-        token.accessTokenExpires &&
-        Date.now() < token.accessTokenExpires
-      ) {
+      const oneHourInMs = 60 * 60 * 1000; // 1 hour in milliseconds
+      const tokenAge = Date.now() - (token.accessTokenIssuedAt || 0);
+      
+      // If token is less than 1 hour old, return it
+      if (token.accessTokenIssuedAt && tokenAge < oneHourInMs) {
+        // Optional: Log time remaining
+        const timeLeft = Math.floor((oneHourInMs - tokenAge) / 60000);
+        if (timeLeft < 5) {
+          console.log(`⏰ Access token expires in ${timeLeft} minutes`);
+        }
         return token;
       }
 
       /**
-       * TOKEN EXPIRED → REFRESH
+       * ACCESS TOKEN EXPIRED (1 hour passed) → REFRESH
        */
+      console.log(`⏰ Access token expired (${Math.floor(tokenAge / 60000)} minutes old), refreshing...`);
       return await refreshAccessToken(token);
     },
 
@@ -175,14 +210,33 @@ const handler = NextAuth({
 
       return session;
     },
-
-    async signIn() {
-      return true;
-    },
   },
 
   pages: {
     signIn: "/login",
+    error: "/login", // Redirect to login on auth errors
+  },
+
+  events: {
+    async signOut({ token }) {
+      // Optional: Revoke refresh token on backend when user signs out
+      if (token?.refreshToken) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/revoke-token/`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              refresh: token.refreshToken,
+            }),
+          });
+          console.log("✅ Refresh token revoked on sign out");
+        } catch (error) {
+          console.error("❌ Failed to revoke refresh token:", error);
+        }
+      }
+    },
   },
 
   debug: process.env.NODE_ENV === "development",
