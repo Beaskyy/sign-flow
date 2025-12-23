@@ -68,5 +68,6 @@ export function useConversation(conversationId: string) {
     queryKey: ['conversations', conversationId],
     queryFn: () => apiClient<Conversation>(`/conversations/${conversationId}/`, token),
     enabled: !!token && !!conversationId,
+    refetchOnWindowFocus: true,
   })
 }

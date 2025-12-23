@@ -15,9 +15,9 @@ import { Button } from "./ui/button";
 import { useState, useRef, useEffect } from "react";
 import { useCreateConversation } from "@/hooks/useCreateConversation";
 import { useRouter } from "next/navigation";
-import { useTextToSignWithWebSocket } from "@/hooks/useTextToSignWebSocket";
-import { useTextToSign } from "@/hooks/useTextToSignWtihWebSocket";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTextToSign } from "@/hooks/useTextToSign";
+import { useTextToSignWithWebSocket } from "@/hooks/useTextToSignWtihWebSocket";
 
 interface TextInputProps {
   conversationId?: string;

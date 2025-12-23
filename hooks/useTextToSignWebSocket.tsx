@@ -1,94 +1,157 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { useTextToSign } from './useTextToSignWtihWebSocket'
-import { useTextToSignWebSocket } from './useTextToSign'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
-export function useTextToSignWithWebSocket() {
-  const [websocketUrl, setWebsocketUrl] = useState<string | null>(null)
-  const [activeMessageId, setActiveMessageId] = useState<string | null>(null)
-  const queryClient = useQueryClient()
-  const textToSign = useTextToSign()
+interface WebSocketMessage {
+  type?: string
+  status?: 'processing' | 'completed' | 'error'
+  translation?: string
+  video_url?: string
+  signs?: Array<{
+    word: string
+    sign_url: string
+    video_url?: string
+  }>
+  progress?: number
+  message?: string
+  error?: string
+}
 
-  const { isConnected, lastMessage, error: wsError } = useTextToSignWebSocket(websocketUrl, {
-    onMessage: (message: any) => {
-      // 1. Update the React Query Cache so the ConversationPage UI updates immediately
-      console.log('📨 [WebSocket] Message received:', message);
-      if (activeMessageId) {
-        queryClient.setQueryData(['conversations', message.conversation_id], (oldData: any) => {
-          if (!oldData) return oldData;
+interface UseTextToSignWebSocketOptions {
+  onMessage?: (message: WebSocketMessage) => void
+  onError?: (error: Event) => void
+  onOpen?: () => void
+  onClose?: () => void
+}
+
+export function useTextToSignWebSocket(
+  websocketUrl: string | null,
+  options: UseTextToSignWebSocketOptions = {}
+) {
+  const [isConnected, setIsConnected] = useState(false)
+  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const wsRef = useRef<WebSocket | null>(null)
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
+  const reconnectAttemptsRef = useRef(0)
+  const maxReconnectAttempts = 5
+
+  const connect = useCallback(() => {
+    if (!websocketUrl) {
+      console.warn('⚠️ Cannot connect: missing WebSocket URL')
+      return
+    }
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('✅ WebSocket already connected')
+      return
+    }
+
+    try {
+      console.log('🔌 Connecting to WebSocket:', websocketUrl)
+      const ws = new WebSocket(websocketUrl)
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket connected successfully')
+        setIsConnected(true)
+        setError(null)
+        reconnectAttemptsRef.current = 0
+        options.onOpen?.()
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(event.data)
+          console.log('📨 WebSocket message received:', message)
+          setLastMessage(message)
+          options.onMessage?.(message)
+        } catch (err) {
+          console.error('❌ Failed to parse WebSocket message:', err)
+          console.error('Raw message:', event.data)
+        }
+      }
+
+      ws.onerror = (event) => {
+        console.error('❌ WebSocket error:', event)
+        setError('WebSocket connection error')
+        options.onError?.(event)
+      }
+
+      ws.onclose = (event) => {
+        console.log('🔌 WebSocket closed', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean
+        })
+        setIsConnected(false)
+        options.onClose?.()
+
+        // Only attempt to reconnect if it wasn't a clean close
+        if (!event.wasClean && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          reconnectAttemptsRef.current += 1
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000)
+          console.log(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`)
           
-          return {
-            ...oldData,
-            messages: oldData.messages.map((msg: any) => 
-              // Match the specific message being translated
-              msg.id === activeMessageId 
-                ? { ...msg, status: message.status, output_preview: message.message || msg.output_preview }
-                : msg
-            )
-          };
-        });
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect()
+          }, delay)
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          console.error('❌ Max reconnection attempts reached')
+          setError('Max reconnection attempts reached')
+        }
       }
 
-      // 2. If finished, clear the URL to close the socket
-      if (message.status === 'completed' || message.status === 'error') {
-        setWebsocketUrl(null);
-        setActiveMessageId(null);
-        // Refresh the whole conversation to ensure all data is synced with DB
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      }
-    },
-  });
+      wsRef.current = ws
+    } catch (err) {
+      console.error('❌ Failed to create WebSocket:', err)
+      setError('Failed to establish WebSocket connection')
+    }
+  }, [websocketUrl, options])
 
+  const disconnect = useCallback(() => {
+    console.log('🔌 Disconnecting WebSocket...')
+    
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current)
+    }
+    reconnectAttemptsRef.current = maxReconnectAttempts // Prevent auto-reconnect
+    
+    if (wsRef.current) {
+      wsRef.current.close(1000, 'Client disconnect') // 1000 = normal closure
+      wsRef.current = null
+    }
+    setIsConnected(false)
+    setLastMessage(null)
+  }, [])
 
-  // Track connection status changes
+  const sendMessage = useCallback((message: any) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('📤 Sending WebSocket message:', message)
+      wsRef.current.send(JSON.stringify(message))
+    } else {
+      console.warn('⚠️ WebSocket is not connected, cannot send message')
+      setError('WebSocket is not connected')
+    }
+  }, [])
+
   useEffect(() => {
     if (websocketUrl) {
-      console.log(`🔌 [WebSocket] Attempting to connect to: ${websocketUrl}`);
+      console.log('🎯 WebSocket URL changed, connecting...')
+      connect()
     }
-  }, [websocketUrl]);
 
-  useEffect(() => {
-    if (isConnected) {
-      console.log("🟢 [WebSocket] Connected Successfully");
-    } else if (websocketUrl && !isConnected) {
-      console.log("🟡 [WebSocket] Connection pending or lost...");
+    return () => {
+      console.log('🧹 Cleaning up WebSocket connection')
+      disconnect()
     }
-  }, [isConnected, websocketUrl]);
-
-  if (wsError) {
-    console.error("🔴 [WebSocket] Critical Error:", wsError);
-  }
-
-
-  const translate = useCallback(async (data: { text: string; conversation_id?: string }) => {
-    try {
-      const response = await textToSign.mutateAsync(data);
-      
-      // Store which message we are currently tracking
-      setActiveMessageId(response.conversation_message_id);
-
-      if (response.websocket) {
-        // Clean the URL (Better to do this in a utility file)
-        const wsUrl = response.websocket.startsWith('/') 
-          ? `${process.env.NEXT_PUBLIC_WS_URL}${response.websocket}`
-          : response.websocket.replace('ws://localhost:8000', 'wss://signai-backend-kt7u.onrender.com');
-        
-        setWebsocketUrl(wsUrl);
-      }
-      
-      return response;
-    } catch (error) {
-      console.error('❌ Translation failed:', error);
-      throw error;
-    }
-  }, [textToSign]);
+  }, [websocketUrl, connect, disconnect])
 
   return {
-    translate,
-    isTranslating: textToSign.isPending || (websocketUrl !== null),
     isConnected,
-    wsError,
+    lastMessage,
+    error,
+    connect,
+    disconnect,
+    sendMessage,
   }
 }
