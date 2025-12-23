@@ -27,7 +27,7 @@ export function useTextToSign() {
     mutationFn: async (data: TextToSignRequest) => {
       console.log('📤 API Request:', data);
       return apiClient<TextToSignResponse>(
-        '/api/translations/text-to-sign/',
+        '/translations/text-to-sign/',
         token,
         {
           method: 'POST',
