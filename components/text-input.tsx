@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import { Mic, Plus, SendHorizonal } from "lucide-react";
 import Image from "next/image";
 import { Textarea } from "./ui/textarea";
@@ -16,86 +15,108 @@ import { useState, useRef, useEffect } from "react";
 import { useCreateConversation } from "@/hooks/useCreateConversation";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTextToSign } from "@/hooks/useTextToSign";
 import { useTextToSignWithWebSocket } from "@/hooks/useTextToSignWtihWebSocket";
 
 interface TextInputProps {
   conversationId?: string;
   onMessageSent?: (message: string, data: any) => void;
+  initialText?: string; 
+  onProcessingChange?: (isProcessing: boolean) => void; 
 }
 
 export const TextInput = ({
   conversationId,
   onMessageSent,
+  initialText = "",
+  onProcessingChange
 }: TextInputProps) => {
   const queryClient = useQueryClient();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [selectedLanguage, setSelectedLanguage] = useState("nigeria");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const maxHeight = 100;
+  
+  // Ref to ensure we only auto-send once per mount
+  const hasAutoSent = useRef(false);
 
   const router = useRouter();
   const createConversation = useCreateConversation();
-  const textToSign = useTextToSign();
-
-
-  // const { isConnected, wsError, translationData } =
-  //   useTextToSignWithWebSocket();
+  
+  // Using the hook here locally for the TextInput logic
   const { isConnected, wsError, translate, isTranslating } = useTextToSignWithWebSocket();
 
+  useEffect(() => {
+    // Notify parent whenever isTranslating changes
+    if (onProcessingChange) {
+      onProcessingChange(isTranslating);
+    }
+  }, [isTranslating, onProcessingChange]);
+
+  // Auto-resize logic
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     textarea.style.height = "auto";
-    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    const newHeight = Math.min(textarea.scrollHeight, 100);
     textarea.style.height = `${newHeight}px`;
-    textarea.style.overflowY = newHeight >= maxHeight ? "auto" : "hidden";
-  };
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setText(e.target.value);
+    textarea.style.overflowY = newHeight >= 100 ? "auto" : "hidden";
   };
 
   useEffect(() => {
     adjustTextareaHeight();
   }, [text]);
 
-  const handleSend = async () => {
-    if (!text.trim()) return;
+  // --- AUTO SEND LOGIC ---
+  useEffect(() => {
+    // If we have initial text (from URL) AND a valid conversation ID, send immediately.
+    if (initialText && conversationId && !hasAutoSent.current) {
+      console.log("🚀 Auto-sending initial text...");
+      hasAutoSent.current = true;
+      handleSend(initialText);
+    }
+  }, [initialText, conversationId]);
 
-    try {
-      let currentId = conversationId;
 
-      // 3. Logic for handling conversation creation or usage
-      if (!currentId) {
-        console.log("📝 No conversationId - Creating new conversation...");
+  const handleSend = async (textOverride?: string) => {
+    const textToSend = textOverride || text;
+    if (!textToSend.trim()) return;
+
+    // --- CASE 1: HOMEPAGE (Create & Redirect) ---
+    if (!conversationId) {
+      try {
+        console.log("📝 Creating new conversation...");
         const newConversation = await createConversation.mutateAsync({
-          title: text.trim().slice(0, 50) + (text.length > 50 ? "..." : ""),
+          title: textToSend.trim().slice(0, 50) + (textToSend.length > 50 ? "..." : ""),
         });
-        currentId = newConversation.id;
-        // Navigate to the new conversation page
-        router.push(`/conversations/${currentId}`);
+
+        // Redirect to new page WITH the text in URL
+        const encodedText = encodeURIComponent(textToSend);
+        router.push(`/conversations/${newConversation.id}?initText=${encodedText}`);
+        
+        setText(""); // Clear local state
+      } catch (error) {
+        console.error("Failed to create conversation:", error);
       }
+      return; 
+    }
 
-      console.log("🚀 Triggering translation for ID:", currentId);
-
-      // 4. Use the NEW hook to send the translation request
+    // --- CASE 2: CONVERSATION PAGE (Translate) ---
+    try {
+      console.log("🚀 Triggering translation...");
+      
       const response = await translate({
-        text,
-        conversation_id: currentId,
+        text: textToSend,
+        conversation_id: conversationId,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["conversations", currentId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations", conversationId] });
 
       if (onMessageSent) {
-        onMessageSent(text, response);
+        onMessageSent(textToSend, response);
       }
 
-      // Clear the input
       setText("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+      
     } catch (error) {
       console.error("❌ Failed to send message:", error);
     }
@@ -108,12 +129,10 @@ export const TextInput = ({
     }
   };
 
-  // 5. Update loading state to track the new mutation
-  // const isLoading = createConversation.isPending || textToSign.isPending;
   const isLoading = createConversation.isPending || isTranslating;
 
   return (
-    <div className="relative border border-[#1D1C1D21] rounded-lg min-h-[116px] h-fit">
+    <div className="relative border border-[#1D1C1D21] rounded-lg min-h-[116px] h-fit bg-white">
       <div className="flex justify-between items-center gap-2.5 p-1.5 bg-[#F8F8F8] rounded-t-lg">
         <small className="text-[8px] text-[#D4AF37] font-semibold uppercase">
           Translate with Signflow AI
@@ -127,18 +146,10 @@ export const TextInput = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {/* ... language items ... */}
             <SelectItem value="nigeria">
               <div className="flex items-center gap-1">
-                <Image
-                  src="/nigeria.svg"
-                  alt="nigeria"
-                  width={15}
-                  height={15}
-                />
-                <small className="text-[#101928] text-[8.47px] font-medium">
-                  NSL
-                </small>
+                <Image src="/nigeria.svg" alt="nigeria" width={15} height={15} />
+                <small className="text-[#101928] text-[8.47px] font-medium">NSL</small>
               </div>
             </SelectItem>
           </SelectContent>
@@ -151,34 +162,18 @@ export const TextInput = ({
           className="w-full py-2 px-3 rounded-none border-none resize-none outline-none placeholder:text-xs placeholder:text-[#1D1C1D80] bg-white transition-all duration-200 overflow-hidden"
           placeholder="Type to translate..."
           value={text}
-          onChange={handleTextChange}
-          onKeyPress={handleKeyPress}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyPress}
           disabled={isLoading}
-          style={{
-            minHeight: "50px",
-            height: "auto",
-            maxHeight: `${maxHeight}px`,
-          }}
+          style={{ minHeight: "50px" }}
         />
       </div>
 
-      {/* 6. Use the error state from the new hook */}
-      {(textToSign.isError || wsError) && (
+      {(wsError) && (
         <div className="px-3 pb-2">
-          <p className="text-[10px] text-red-500">
-            {(textToSign.error as any)?.message || wsError}
-          </p>
+          <p className="text-[10px] text-red-500">{wsError}</p>
         </div>
       )}
-
-      {/* Translation status from WebSocket */}
-      {/* {translate?.status === "processing" && (
-        <div className="px-3 pb-2">
-          <p className="text-[10px] text-blue-500">
-            {translate.message || "Processing translation..."}
-          </p>
-        </div>
-      )} */}
 
       <div className="flex justify-between items-center gap-4 p-1.5">
         <div className="flex items-center gap-1">
@@ -197,7 +192,7 @@ export const TextInput = ({
           </Button>
         ) : (
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={isLoading}
             className="flex justify-center items-center rounded-full size-6 bg-[#D4AF37] hover:bg-[#D4AF37]/90 p-1 cursor-pointer disabled:opacity-50"
           >

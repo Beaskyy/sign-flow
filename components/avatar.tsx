@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import Image from "next/image";
 
@@ -9,9 +9,11 @@ import {
 } from "@/components/ui/popover";
 import { ReplyAll, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { ConversationHistory } from "./conversation-history";
 
 export const Avatar = () => {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
+  const [openHistory, setOpenHistory] = useState(false);
   return (
     <div className="relative min-w-[343px] lg:w-full h-[456px] bg-[#E7E7E7CC] rounded-lg">
       <div className="flex justify-center items-center p-1.5 h-9 bg-[#D2D2D2BA] rounded-t-lg">
@@ -28,17 +30,22 @@ export const Avatar = () => {
             <Image src="/fab.svg" alt="fab" width={100} height={33} />
           </PopoverTrigger>
           <PopoverContent className="absolute bottom-24 -left-6 flex justify-center items-center w-fit bg-transparent shadow-none border-none">
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full">
-                <ReplyAll />
+            <div className="flex flex-col gap-1.5 mb-[18.29px]">
+              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full cursor-pointer">
+                <ConversationHistory
+                  openHistory={openHistory}
+                  setOpenHistory={setOpenHistory}
+                  messages={[]} 
+                  onPlayMessage={() => {}}
+                />
               </div>
-              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full">
-                <ReplyAll />
+              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full cursor-pointer">
+                <Image src="/subs.svg" alt="subs" width={18} height={17.58} />
               </div>
-              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full">
-                <ReplyAll />
+              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full cursor-pointer">
+                <p className="text-[#404040] font-semibold">1x</p>
               </div>
-              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full">
+              <div className="flex justify-center items-center size-[36.57px] bg-white rounded-full cursor-pointer">
                 <RotateCcw />
               </div>
             </div>
