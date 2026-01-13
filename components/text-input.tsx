@@ -20,29 +20,30 @@ import { useTextToSignWithWebSocket } from "@/hooks/useTextToSignWtihWebSocket";
 interface TextInputProps {
   conversationId?: string;
   onMessageSent?: (message: string, data: any) => void;
-  initialText?: string; 
-  onProcessingChange?: (isProcessing: boolean) => void; 
+  initialText?: string;
+  onProcessingChange?: (isProcessing: boolean) => void;
 }
 
 export const TextInput = ({
   conversationId,
   onMessageSent,
   initialText = "",
-  onProcessingChange
+  onProcessingChange,
 }: TextInputProps) => {
   const queryClient = useQueryClient();
   const [text, setText] = useState(initialText);
   const [selectedLanguage, setSelectedLanguage] = useState("nigeria");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
+
   // Ref to ensure we only auto-send once per mount
   const hasAutoSent = useRef(false);
 
   const router = useRouter();
   const createConversation = useCreateConversation();
-  
+
   // Using the hook here locally for the TextInput logic
-  const { isConnected, wsError, translate, isTranslating } = useTextToSignWithWebSocket();
+  const { isConnected, wsError, translate, isTranslating } =
+    useTextToSignWithWebSocket();
 
   useEffect(() => {
     // Notify parent whenever isTranslating changes
@@ -75,7 +76,6 @@ export const TextInput = ({
     }
   }, [initialText, conversationId]);
 
-
   const handleSend = async (textOverride?: string) => {
     const textToSend = textOverride || text;
     if (!textToSend.trim()) return;
@@ -85,30 +85,36 @@ export const TextInput = ({
       try {
         console.log("📝 Creating new conversation...");
         const newConversation = await createConversation.mutateAsync({
-          title: textToSend.trim().slice(0, 50) + (textToSend.length > 50 ? "..." : ""),
+          title:
+            textToSend.trim().slice(0, 50) +
+            (textToSend.length > 50 ? "..." : ""),
         });
 
         // Redirect to new page WITH the text in URL
         const encodedText = encodeURIComponent(textToSend);
-        router.push(`/conversations/${newConversation.id}?initText=${encodedText}`);
-        
+        router.push(
+          `/conversations/${newConversation.id}?initText=${encodedText}`
+        );
+
         setText(""); // Clear local state
       } catch (error) {
         console.error("Failed to create conversation:", error);
       }
-      return; 
+      return;
     }
 
     // --- CASE 2: CONVERSATION PAGE (Translate) ---
     try {
       console.log("🚀 Triggering translation...");
-      
+
       const response = await translate({
         text: textToSend,
         conversation_id: conversationId,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["conversations", conversationId] });
+      queryClient.invalidateQueries({
+        queryKey: ["conversations", conversationId],
+      });
 
       if (onMessageSent) {
         onMessageSent(textToSend, response);
@@ -116,7 +122,6 @@ export const TextInput = ({
 
       setText("");
       if (textareaRef.current) textareaRef.current.style.height = "auto";
-      
     } catch (error) {
       console.error("❌ Failed to send message:", error);
     }
@@ -146,10 +151,33 @@ export const TextInput = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="usa">
+              <div className="flex items-center gap-1">
+                <Image src="/usa.svg" alt="usa" width={15} height={15} />
+                <small className="text-[#101928] text-[8.47px] font-medium">
+                  ASL
+                </small>
+              </div>
+            </SelectItem>
+            <SelectItem value="uk">
+              <div className="flex items-center gap-1">
+                <Image src="/uk.svg" alt="uk" width={15} height={15} />
+                <small className="text-[#101928] text-[8.47px] font-medium">
+                  BSL
+                </small>
+              </div>
+            </SelectItem>
             <SelectItem value="nigeria">
               <div className="flex items-center gap-1">
-                <Image src="/nigeria.svg" alt="nigeria" width={15} height={15} />
-                <small className="text-[#101928] text-[8.47px] font-medium">NSL</small>
+                <Image
+                  src="/nigeria.svg"
+                  alt="nigeria"
+                  width={15}
+                  height={15}
+                />
+                <small className="text-[#101928] text-[8.47px] font-medium">
+                  NSL
+                </small>
               </div>
             </SelectItem>
           </SelectContent>
@@ -169,7 +197,7 @@ export const TextInput = ({
         />
       </div>
 
-      {(wsError) && (
+      {wsError && (
         <div className="px-3 pb-2">
           <p className="text-[10px] text-red-500">{wsError}</p>
         </div>
