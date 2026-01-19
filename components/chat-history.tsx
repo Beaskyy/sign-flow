@@ -131,6 +131,18 @@ export const ChatHistory = () => {
     );
   });
 
+  const older = allConversations.filter((conv: any) => {
+    if (!conv?.created_at) return false;
+    const date = new Date(conv.created_at);
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Returns true if the date is older than or equal to 7 days ago
+    return date <= sevenDaysAgo;
+  });
+
+
   const handleCreateNew = async () => {
     try {
       const newConv = await createConversation.mutateAsync({
@@ -166,7 +178,7 @@ export const ChatHistory = () => {
   };
 
   // Check if there are no conversations at all
-  const hasConversations = today.length > 0 || yesterday.length > 0 || previous7Days.length > 0;
+  const hasConversations = today.length > 0 || yesterday.length > 0 || previous7Days.length > 0 || older.length > 0;;
   return (
     <div>
        <div className="flex flex-col gap-4 h-full">
@@ -265,6 +277,15 @@ export const ChatHistory = () => {
                   <ChatSection
                     title="Previous 7 Days"
                     conversations={previous7Days}
+                    onRename={handleRename}
+                    onDelete={handleDelete}
+                    onSelect={handleSelect}
+                  />
+                )}
+                 {older.length > 0 && (
+                  <ChatSection
+                    title="Older"
+                    conversations={older}
                     onRename={handleRename}
                     onDelete={handleDelete}
                     onSelect={handleSelect}
