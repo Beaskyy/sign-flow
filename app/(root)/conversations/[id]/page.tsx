@@ -127,6 +127,9 @@ export default function ConversationPage() {
 
         {/* Input updates 'isProcessing' when WebSocket is busy */}
         <TextInput 
+        // conversationId={id} 
+  messageCount={conversation?.message_count} 
+  conversationTitle={conversation?.title}
           conversationId={conversationId}
           onMessageSent={handleMessageSent}
           initialText={initText || ""}

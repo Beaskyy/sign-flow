@@ -13,6 +13,7 @@ import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { useState, useRef, useEffect } from "react";
 import { useCreateConversation } from "@/hooks/useCreateConversation";
+import { useUpdateConversation } from "@/hooks/useUpdateConversation"; // 1. Import this
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTextToSignWithWebSocket } from "@/hooks/useTextToSignWtihWebSocket";
@@ -22,6 +23,9 @@ interface TextInputProps {
   onMessageSent?: (message: string, data: any) => void;
   initialText?: string;
   onProcessingChange?: (isProcessing: boolean) => void;
+  // 2. Add these props so we know when to rename
+  messageCount?: number; 
+  conversationTitle?: string;
 }
 
 export const TextInput = ({
@@ -29,6 +33,8 @@ export const TextInput = ({
   onMessageSent,
   initialText = "",
   onProcessingChange,
+  messageCount = 0, // Default to 0
+  conversationTitle = ""
 }: TextInputProps) => {
   const queryClient = useQueryClient();
   const [text, setText] = useState(initialText);
@@ -40,19 +46,18 @@ export const TextInput = ({
 
   const router = useRouter();
   const createConversation = useCreateConversation();
+  const updateConversation = useUpdateConversation(); // 3. Initialize hook
 
-  // Using the hook here locally for the TextInput logic
+  // ... (Existing WebSocket and resize logic remains the same) ...
   const { isConnected, wsError, translate, isTranslating } =
     useTextToSignWithWebSocket();
 
   useEffect(() => {
-    // Notify parent whenever isTranslating changes
     if (onProcessingChange) {
       onProcessingChange(isTranslating);
     }
   }, [isTranslating, onProcessingChange]);
 
-  // Auto-resize logic
   const adjustTextareaHeight = () => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -66,21 +71,20 @@ export const TextInput = ({
     adjustTextareaHeight();
   }, [text]);
 
-  // --- AUTO SEND LOGIC ---
   useEffect(() => {
-    // If we have initial text (from URL) AND a valid conversation ID, send immediately.
     if (initialText && conversationId && !hasAutoSent.current) {
-      console.log("🚀 Auto-sending initial text...");
       hasAutoSent.current = true;
       handleSend(initialText);
     }
   }, [initialText, conversationId]);
 
+  // --- UPDATED SEND LOGIC ---
   const handleSend = async (textOverride?: string) => {
     const textToSend = textOverride || text;
     if (!textToSend.trim()) return;
 
     // --- CASE 1: HOMEPAGE (Create & Redirect) ---
+    // This part works: it creates the conversation with the correct title immediately.
     if (!conversationId) {
       try {
         console.log("📝 Creating new conversation...");
@@ -90,22 +94,34 @@ export const TextInput = ({
             (textToSend.length > 50 ? "..." : ""),
         });
 
-        // Redirect to new page WITH the text in URL
         const encodedText = encodeURIComponent(textToSend);
         router.push(
           `/conversations/${newConversation.id}?initText=${encodedText}`
         );
 
-        setText(""); // Clear local state
+        setText(""); 
       } catch (error) {
         console.error("Failed to create conversation:", error);
       }
       return;
     }
 
-    // --- CASE 2: CONVERSATION PAGE (Translate) ---
+    // CONVERSATION PAGE (Translate & Rename) ---
     try {
       console.log("🚀 Triggering translation...");
+
+      // If message count is 0 OR title is explicitly "New Conversation"
+      const shouldRename = messageCount === 0 || conversationTitle === "New Conversation";
+      
+      if (shouldRename) {
+        const newTitle = textToSend.trim().slice(0, 40) + (textToSend.length > 40 ? "..." : "");
+        
+        // We run this without awaiting so it doesn't block the translation
+        updateConversation.mutate({
+          id: conversationId,
+          title: newTitle
+        });
+      }
 
       const response = await translate({
         text: textToSend,
@@ -114,6 +130,10 @@ export const TextInput = ({
 
       queryClient.invalidateQueries({
         queryKey: ["conversations", conversationId],
+      });
+      // Also invalidate the list so the sidebar updates
+      queryClient.invalidateQueries({
+        queryKey: ["conversations_list"], 
       });
 
       if (onMessageSent) {
@@ -137,54 +157,13 @@ export const TextInput = ({
   const isLoading = createConversation.isPending || isTranslating;
 
   return (
-    <div className="relative border border-[#1D1C1D21] rounded-lg min-h-[116px] h-fit bg-white">
-      <div className="flex justify-between items-center gap-2.5 p-1.5 bg-[#F8F8F8] rounded-t-lg">
-        <small className="text-[8px] text-[#D4AF37] font-semibold uppercase">
-          Translate with Signflow AI
-          {isConnected && (
-            <span className="ml-2 text-green-600">● Connected</span>
-          )}
-        </small>
-
-        <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-          <SelectTrigger className="w-fit border-none bg-transparent">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="usa">
-              <div className="flex items-center gap-1">
-                <Image src="/usa.svg" alt="usa" width={15} height={15} />
-                <small className="text-[#101928] text-[8.47px] font-medium">
-                  ASL
-                </small>
-              </div>
-            </SelectItem>
-            <SelectItem value="uk">
-              <div className="flex items-center gap-1">
-                <Image src="/uk.svg" alt="uk" width={15} height={15} />
-                <small className="text-[#101928] text-[8.47px] font-medium">
-                  BSL
-                </small>
-              </div>
-            </SelectItem>
-            <SelectItem value="nigeria">
-              <div className="flex items-center gap-1">
-                <Image
-                  src="/nigeria.svg"
-                  alt="nigeria"
-                  width={15}
-                  height={15}
-                />
-                <small className="text-[#101928] text-[8.47px] font-medium">
-                  NSL
-                </small>
-              </div>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="relative">
+     // ... (Your existing JSX Return) ...
+     <div className="relative border border-[#1D1C1D21] rounded-lg min-h-[116px] h-fit bg-white">
+        {/* ... Rest of your UI ... */}
+        {/* (I am omitting the UI JSX here to save space, but keep it exactly as you have it) */}
+        
+        {/* Just ensure the <Textarea /> and button call handleSend() */}
+         <div className="relative">
         <Textarea
           ref={textareaRef}
           className="w-full py-2 px-3 rounded-none border-none resize-none outline-none placeholder:text-xs placeholder:text-[#1D1C1D80] bg-white transition-all duration-200 overflow-hidden"
@@ -232,6 +211,6 @@ export const TextInput = ({
           </button>
         )}
       </div>
-    </div>
+     </div>
   );
 };
