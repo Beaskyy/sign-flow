@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTextToSign } from "./useTextToSign";
 import { useTextToSignWebSocket } from "./useTextToSignWebSocket";
@@ -16,33 +16,45 @@ export function useTextToSignWithWebSocket() {
   const queryClient = useQueryClient();
   const textToSign = useTextToSign();
 
-  const {
-    isConnected,
-    lastMessage,
-    error: wsError,
-  } = useTextToSignWebSocket(websocketUrl, {
+  // Use refs to access latest values in callbacks without recreating them
+  const activeMessageIdRef = useRef(activeMessageId);
+  const activeConversationIdRef = useRef(activeConversationId);
+
+  useEffect(() => {
+    activeMessageIdRef.current = activeMessageId;
+  }, [activeMessageId]);
+
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
+  // Stabilize the options object using useMemo
+  const wsOptions = useMemo(() => ({
     onMessage: (message: any) => {
       console.log("📨 [WebSocket] Message received:", message);
 
-      if (activeMessageId && activeConversationId) {
+      const currentMessageId = activeMessageIdRef.current;
+      const currentConversationId = activeConversationIdRef.current;
+
+      if (currentMessageId && currentConversationId) {
         // Update the specific message in the cache
         queryClient.setQueryData(
-          ["conversations", activeConversationId],
+          ["conversations", currentConversationId],
           (oldData: any) => {
             if (!oldData) {
               console.warn(
                 "⚠️ No cached data found for conversation:",
-                activeConversationId
+                currentConversationId
               );
               return oldData;
             }
 
-            console.log("🔄 Updating message in cache:", activeMessageId);
+            console.log("🔄 Updating message in cache:", currentMessageId);
 
             return {
               ...oldData,
               messages: oldData.messages.map((msg: any) =>
-                msg.id === activeMessageId
+                msg.id === currentMessageId
                   ? {
                       ...msg,
                       status: message.status,
@@ -67,13 +79,13 @@ export function useTextToSignWithWebSocket() {
         setActiveMessageId(null);
 
         // Refresh conversation data from server
-        if (activeConversationId) {
+        if (currentConversationId) {
           console.log(
             "🔄 Invalidating conversation cache:",
-            activeConversationId
+            currentConversationId
           );
           queryClient.invalidateQueries({
-            queryKey: ["conversations", activeConversationId],
+            queryKey: ["conversations", currentConversationId],
           });
         }
         queryClient.invalidateQueries({ queryKey: ["conversations"] });
@@ -84,7 +96,13 @@ export function useTextToSignWithWebSocket() {
         }, 100);
       }
     },
-  });
+  }), [queryClient]);
+
+  const {
+    isConnected,
+    lastMessage,
+    error: wsError,
+  } = useTextToSignWebSocket(websocketUrl, wsOptions);
 
   // Track connection status changes
   useEffect(() => {
