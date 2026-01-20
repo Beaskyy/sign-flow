@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import {
   Popover,
@@ -14,7 +16,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import Link from "next/link";
 import { Navigation } from "./navigation";
 import { useStateContext } from "@/providers/ContextProvider";
 import {
@@ -25,10 +26,27 @@ import {
   Share2,
 } from "lucide-react";
 
+import { useCreateConversation } from "@/hooks/useCreateConversation";
+
 const Header = () => {
   const { activeMenu, setActiveMenu } = useStateContext();
+  
+  const router = useRouter();
+  const createConversation = useCreateConversation();
+
+  const handleCreateNew = async () => {
+    try {
+      const newConv = await createConversation.mutateAsync({
+        title: "New Conversation",
+      });
+      router.push(`/conversations/${newConv.id}`);
+    } catch (error) {
+      console.error("Failed to create conversation:", error);
+    }
+  };
 
   const logout = async () => {};
+
   return (
     <header
       className={`fixed z-20 w-full bg-white transition-all duration-300 lg:pr-[26px] ${
@@ -77,12 +95,22 @@ const Header = () => {
             <EllipsisVertical className="size-5 flex-shrink-0" />
           </PopoverTrigger>
           <PopoverContent className="absolute flex flex-col justify-center right-0 w-[134px] h-[122px] bg-white rounded-md drop-shadow-sm p-0">
-            <div className="flex items-center gap-1.5 h-[27.72px] py-1.5 px-3 hover:cursor-pointer hover:bg-[#FAFAFA]">
-              <Image src="/edit.svg" alt="edit" width={15.4} height={15.4} />
+            
+            <div 
+              onClick={handleCreateNew}
+              className={`flex items-center gap-1.5 h-[27.72px] py-1.5 px-3 hover:cursor-pointer hover:bg-[#FAFAFA] ${createConversation.isPending ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+              {createConversation.isPending ? (
+                // Optional: Show a tiny spinner or simple generic icon while loading
+                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400" />
+              ) : (
+                <Image src="/edit.svg" alt="edit" width={15.4} height={15.4} />
+              )}
               <p className="text-[9.24px] text-[#101928] font-medium">
-                New Chat
+                {createConversation.isPending ? "Creating..." : "New Chat"}
               </p>
             </div>
+
             <div className="flex items-center gap-1.5 h-[27.72px] py-1.5 px-3 hover:cursor-pointer hover:bg-[#FAFAFA]">
               <Share2 className="size-[15px] text-[#404040]" />
               <p className="text-[8.47px] text-[#101928] font-medium">Share</p>
@@ -99,19 +127,6 @@ const Header = () => {
             </div>
           </PopoverContent>
         </Popover>
-
-        {/* <DropdownMenu>
-          <DropdownMenuTrigger>
-            <EllipsisVertical className="" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer" onClick={logout}>
-              Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu> */}
       </div>
     </header>
   );
