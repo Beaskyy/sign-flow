@@ -23,6 +23,7 @@ declare module "next-auth/jwt" {
     accessToken?: string;
     refreshToken?: string;
     accessTokenIssuedAt?: number; // Track when access token was issued
+    refreshTokenIssuedAt?: number; // Track when refresh token was issued
     user?: any;
     error?: string;
   }
@@ -42,12 +43,18 @@ async function refreshAccessToken(token: any) {
     }
 
     // Check if refresh token is still valid (7 days = 604800000 ms)
-    const refreshTokenIssuedAt = token.accessTokenIssuedAt || Date.now();
-    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+    // Use refreshTokenIssuedAt if available, otherwise fall back to accessTokenIssuedAt
+    // This handles legacy tokens that might not have refreshTokenIssuedAt
+    const refreshTokenIssuedAt = token.refreshTokenIssuedAt || token.accessTokenIssuedAt;
     
-    if (Date.now() - refreshTokenIssuedAt > sevenDaysInMs) {
-      console.error("❌ Refresh token expired (7 days)");
-      throw new Error("Refresh token expired");
+    if (refreshTokenIssuedAt) {
+      const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+      const refreshTokenAge = Date.now() - refreshTokenIssuedAt;
+      
+      if (refreshTokenAge > sevenDaysInMs) {
+        console.error("❌ Refresh token expired (7 days)");
+        throw new Error("Refresh token expired");
+      }
     }
 
     const response = await fetch(
@@ -67,23 +74,35 @@ async function refreshAccessToken(token: any) {
 
     if (!response.ok) {
       console.error("❌ Refresh failed:", data);
+      // If refresh token is invalid/expired, mark error
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("Refresh token invalid or expired");
+      }
       throw data;
     }
 
     console.log("✅ Access token refreshed");
     
+    const now = Date.now();
     return {
       ...token,
       accessToken: data.access,
-      accessTokenIssuedAt: Date.now(), // Reset issuance time
+      accessTokenIssuedAt: now, // Reset access token issuance time
       refreshToken: data.refresh ?? token.refreshToken, // Use new refresh token if provided
+      refreshTokenIssuedAt: data.refresh ? now : token.refreshTokenIssuedAt, // Update if new refresh token provided
+      error: undefined, // Clear any previous errors
     };
   } catch (error) {
     console.error("❌ Failed to refresh access token:", error);
     
+    // If refresh token is expired/invalid, mark for sign out
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isExpired = errorMessage.includes("expired") || errorMessage.includes("invalid");
+    
     return {
       ...token,
-      error: "RefreshAccessTokenError",
+      error: isExpired ? "RefreshAccessTokenError" : "RefreshAccessTokenError",
+      accessToken: undefined, // Clear invalid access token
     };
   }
 }
@@ -149,9 +168,11 @@ const handler = NextAuth({
           }
 
           // Store tokens with timestamp
+          const now = Date.now();
           token.accessToken = data.tokens.access;
           token.refreshToken = data.tokens.refresh;
-          token.accessTokenIssuedAt = Date.now(); // Track when issued
+          token.accessTokenIssuedAt = now; // Track when access token was issued
+          token.refreshTokenIssuedAt = now; // Track when refresh token was issued
           
           token.sub = String(data.user.pk);
           token.user = {
@@ -160,7 +181,7 @@ const handler = NextAuth({
             email: data.user.email,
           };
 
-          console.log("✅ Initial login - Access token issued at:", new Date(token.accessTokenIssuedAt));
+          console.log("✅ Initial login - Tokens issued at:", new Date(now));
           return token;
         } catch (error) {
           console.error("❌ Google auth failed:", error);
@@ -172,12 +193,32 @@ const handler = NextAuth({
        * CHECK ACCESS TOKEN EXPIRY (1 hour = 3600000 ms)
        * We'll check if token was issued more than 1 hour ago
        */
+      
+      // If no access token, return token (might be initial state or error state)
+      if (!token.accessToken) {
+        // If there's an error and no token, don't try to refresh
+        if (token.error === "RefreshAccessTokenError") {
+          return token;
+        }
+        // Otherwise, if we have a refresh token, try to get a new access token
+        if (token.refreshToken) {
+          return await refreshAccessToken(token);
+        }
+        return token;
+      }
+
+      // If no accessTokenIssuedAt, assume it's expired and refresh
+      if (!token.accessTokenIssuedAt) {
+        console.log("⏰ Access token has no issued timestamp, refreshing...");
+        return await refreshAccessToken(token);
+      }
+
       const oneHourInMs = 60 * 60 * 1000; // 1 hour in milliseconds
-      const tokenAge = Date.now() - (token.accessTokenIssuedAt || 0);
+      const tokenAge = Date.now() - token.accessTokenIssuedAt;
       
       // If token is less than 1 hour old, return it
-      if (token.accessTokenIssuedAt && tokenAge < oneHourInMs) {
-        // Optional: Log time remaining
+      if (tokenAge < oneHourInMs) {
+        // Optional: Log time remaining when close to expiry
         const timeLeft = Math.floor((oneHourInMs - tokenAge) / 60000);
         if (timeLeft < 5) {
           console.log(`⏰ Access token expires in ${timeLeft} minutes`);
@@ -206,6 +247,12 @@ const handler = NextAuth({
           ...session.user,
           ...token.user,
         };
+      }
+
+      // If refresh failed and no access token, session should be invalid
+      if (token.error === "RefreshAccessTokenError" && !token.accessToken) {
+        // The session will be invalid, client should handle sign out
+        console.warn("⚠️ Session invalid - refresh token expired");
       }
 
       return session;
