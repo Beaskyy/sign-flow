@@ -1,4 +1,12 @@
-import { Check, ChevronDown, ChevronRight, Globe, Info, Settings, LogOut } from "lucide-react";
+import { 
+  Check, 
+  ChevronDown, 
+  ChevronRight, 
+  Globe, 
+  Info, 
+  Settings, 
+  Camera 
+} from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Image from "next/image";
 import { useState } from "react";
@@ -25,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { Button } from "./ui/button";
+import { Label } from "@/components/ui/label"; 
 
 const LANGUAGES = [
   { id: "usa", label: "ASL", icon: "/usa.svg" },
@@ -47,7 +56,9 @@ export const SidebarProfile = () => {
   const session = useSession();
   const user = session.data?.user;
   const [selectedLanguage, setSelectedLanguage] = useState("nigeria");
+  
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   // Safe derivation of user details
@@ -147,10 +158,16 @@ export const SidebarProfile = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <MenuItem 
-              icon={<Image src="/personalisation.svg" alt="personalisation" width={20} height={20} className="size-4 text-[#333333]" />} 
-              label="Personalisation" 
-            />
+            {/* Personalisation Trigger */}
+            <div onClick={() => {
+                setIsPopoverOpen(false);
+                setIsProfileOpen(true);
+            }}>
+                <MenuItem 
+                icon={<Image src="/personalisation.svg" alt="personalisation" width={20} height={20} className="size-4 text-[#333333]" />} 
+                label="Personalisation" 
+                />
+            </div>
           </div>
 
           <hr className="text-[#F0F2F5]" />
@@ -175,12 +192,11 @@ export const SidebarProfile = () => {
           {/* Logout Trigger */}
           <div 
             onClick={() => {
-              setIsPopoverOpen(false); // Close popover
-              setIsLogoutOpen(true);   // Open dialog
+              setIsPopoverOpen(false); 
+              setIsLogoutOpen(true);   
             }}
             className="flex items-center gap-3 hover:bg-[#FEF3F2] py-3 px-3 cursor-pointer m-1 rounded-md transition-colors group"
           >
-            {/* Switched to Lucide Icon for logout for consistency, or keep Image if strictly required */}
             <Image
               src="/logout.svg"
               alt="logout"
@@ -193,7 +209,9 @@ export const SidebarProfile = () => {
         </PopoverContent>
       </Popover>
 
-      {/* Logout Dialog */}
+      {/* -------------------- */}
+      {/* Logout Confirmation Dialog */}
+      {/* -------------------- */}
       <Dialog open={isLogoutOpen} onOpenChange={setIsLogoutOpen}>
         <DialogContent className="[&>button]:hidden flex flex-col pt-5 pb-4 px-4 max-w-[340px] rounded-lg gap-0">
           <DialogHeader>
@@ -224,11 +242,97 @@ export const SidebarProfile = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* -------------------- */}
+      {/* Edit Profile Dialog */}
+      {/* -------------------- */}
+      <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+        <DialogContent className="[&>button]:hidden flex flex-col p-6 max-w-[380px] rounded-xl gap-0 bg-white">
+          
+          <DialogTitle className="text-[#454545] text-left text-[12.7px] font-semibold mb-6">
+              Edit profile
+          </DialogTitle>
+
+          {/* Large Avatar */}
+          <div className="flex justify-center mb-6">
+            <div className="relative">
+              <div className="flex justify-center items-center w-[88px] h-[88px] rounded-full bg-[#FDF8E9]">
+                {user?.image ? (
+                   <Image
+                   src={user.image}
+                   alt="profile"
+                   fill
+                   className="rounded-full object-cover"
+                 />
+                ) : (
+                  <h4 className="text-[28px] text-[#101928] font-bold tracking-tight">
+                    {initials}
+                  </h4>
+                )}
+              </div>
+              <div className="absolute bottom-0 right-0 p-1.5 bg-[#5E5E5E] size-[27px] rounded-full cursor-pointer hover:bg-gray-700 transition">
+                <Camera className="w-3.5 h-3.5 text-white" />
+              </div>
+            </div>
+          </div>
+
+          {/* Form Fields */}
+          <div className="flex flex-col gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-[#344054]">Display name</Label>
+              <div className="relative">
+                <input 
+                  disabled 
+                  value={user?.name || ""} 
+                  className="w-full h-10 px-3 py-2 text-[13px] text-[#667085] bg-[#F5F7FA] border border-[#E4E7EC] rounded-md focus:outline-none cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-[#344054]">Email address</Label>
+              <div className="relative">
+                <input 
+                  disabled 
+                  value={user?.email || ""} 
+                  className="w-full h-10 px-3 py-2 text-[13px] text-[#667085] bg-[#F5F7FA] border border-[#E4E7EC] rounded-md focus:outline-none cursor-not-allowed"
+                />
+              </div>
+            </div>
+          </div>
+
+          <p className="text-center text-[10px] leading-[14px] text-[#ABABAB] mt-6 mb-8 px-2">
+            Only your profile photo can be edited for now. <br />
+            Your name and email are set when you sign up.
+          </p>
+
+          {/* Footer Actions */}
+          <div className="flex justify-end items-center gap-3">
+            <Button
+              variant="ghost"
+              onClick={() => setIsProfileOpen(false)}
+              className="h-[36px] px-4 rounded-full text-[#344054] text-[12px] font-medium hover:bg-gray-50"
+            >
+              Cancel
+            </Button>
+            <Button
+               onClick={() => {
+                // Save Logic goes here
+                setIsProfileOpen(false);
+              }}
+              className="h-[36px] px-6 rounded-full bg-[#D4AF37] hover:bg-[#c9ad54] text-white text-[12px] font-medium shadow-none"
+            >
+              Save
+            </Button>
+          </div>
+
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-// --- Internal Helper Components to keep main component clean ---
+// --- Internal Helper Components ---
 
 const MenuItem = ({ icon, label }: { icon: React.ReactNode; label: string }) => (
   <div className="flex items-center gap-3 hover:bg-[#F5F5F5] py-2 px-3 cursor-pointer transition-colors">
@@ -253,7 +357,6 @@ const SubMenu = ({ triggerIcon, label, items }: { triggerIcon: React.ReactNode; 
         <DropdownMenuItem key={idx} className="cursor-pointer">
           <div className="flex justify-between items-center w-full">
             <p className="text-[#101928] text-[10.89px]">{item.label}</p>
-            {/* If the sub-menu icon is always the key, we can hardcode or pass it in */}
             <Image src={item.icon} alt="icon" width={22} height={16} className="text-[#333333]" />
           </div>
         </DropdownMenuItem>
