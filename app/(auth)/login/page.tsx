@@ -19,7 +19,7 @@ const Login = () => {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <main className="flex flex-col justify-between items-center text-center min-h-screen pb-6 md:py-24">
-      <div className="flex flex-col justify-center items-center gap-12 mt-40">
+      <div className="flex flex-col justify-center items-center gap-12 md:mt-40 mt-24">
         <Image src="/logo.png" alt="logo" width={130} height={130} />
         <div className="flex flex-col gap-2">
           <h2 className="text-black text-4xl tracking-[-1.5px] font-semibold leading-[120%]">
