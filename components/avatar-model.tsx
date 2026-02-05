@@ -1,62 +1,13 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
-// ... existing imports ...
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
-import * as THREE from "three";
-import gsap from "gsap";
+import React, { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { RotateCcw, Play, Loader2, Sparkles } from "lucide-react"; // Added Sparkles
+import { RotateCcw, Play, Sparkles } from "lucide-react";
 import { ConversationHistory } from "./conversation-history";
 import Image from "next/image";
-
-// ... Keep AvatarModel function exactly as is ...
-function AvatarModel({ sequence, isPlaying, onFinish }: any) {
-    // ... your existing 3D logic ...
-    const { scene } = useGLTF("https://models.readyplayer.me/69360640347390125d578f7f.glb");
-    const avatarRef = useRef<THREE.Group>(null);
-  
-    const playSequence = useCallback(() => {
-      if (!avatarRef.current || !sequence || sequence.length === 0) return;
-  
-      const avatar = avatarRef.current;
-      let cumulativeTime = 0;
-  
-      sequence.forEach((step: any, index: number) => {
-        setTimeout(() => {
-          if (step.boneRotations) {
-            Object.entries(step.boneRotations).forEach(([boneName, rot]: any) => {
-              const bone = avatar.getObjectByName(boneName);
-              if (bone) {
-                gsap.to(bone.rotation, {
-                  x: rot.x,
-                  y: rot.y,
-                  z: rot.z,
-                  duration: step.duration_ms / 1000,
-                  ease: "power2.out"
-                });
-              }
-            });
-          }
-  
-          if (index === sequence.length - 1) {
-            setTimeout(onFinish, step.duration_ms);
-          }
-        }, cumulativeTime);
-        
-        cumulativeTime += step.duration_ms;
-      });
-    }, [sequence, onFinish]);
-  
-    useEffect(() => {
-      if (isPlaying) {
-        playSequence();
-      }
-    }, [isPlaying, playSequence]);
-  
-    return <primitive ref={avatarRef} object={scene} scale={1.8} position={[0, -1.8, 0]} />;
-}
+import { LandmarkSkeleton } from "./landmark-skeleton";
+import { BoneRotationAvatar } from "./bone-rotation-avatar";
+import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
 
 
 interface AvatarProps {
@@ -94,18 +45,25 @@ export const AvatarModels = ({
         </p>
       </div>
 
-      {/* 3D Canvas Area */}
-      <div className="relative flex-1 w-full bg-[#E7E7E7CC] group">
-        <Canvas camera={{ position: [0, 0.5, 3] }}>
-          <ambientLight intensity={0.8} />
-          <directionalLight position={[2, 5, 2]} />
-          <AvatarModel 
-            sequence={currentSequence} 
+      {/* Motion display: LandmarkFrame (new) or boneRotations (legacy) */}
+      <div className="relative flex-1 w-full bg-[#E7E7E7CC] group flex items-center justify-center">
+        {hasData && currentSequence.some((f) => isLandmarkFrame(f)) ? (
+          <LandmarkSkeleton
+            sequence={currentSequence}
             isPlaying={isPlaying}
             onFinish={() => onPlayStatusChange(false)}
+            className="w-full h-full rounded-b-lg"
           />
-          <OrbitControls enablePan={false} minDistance={1} maxDistance={5} enableZoom={false} />
-        </Canvas>
+        ) : hasData && currentSequence.some((f) => isLegacyFrame(f)) ? (
+          <BoneRotationAvatar
+            sequence={currentSequence}
+            isPlaying={isPlaying}
+            onFinish={() => onPlayStatusChange(false)}
+            className="w-full h-full rounded-b-lg"
+          />
+        ) : hasData ? (
+          <p className="text-sm text-gray-500">Unsupported motion format</p>
+        ) : null}
 
         {/* --- STATE 1: PROCESSING OVERLAY (WebSocket) --- */}
         {isProcessing && (

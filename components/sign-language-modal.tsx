@@ -1,58 +1,13 @@
 "use client";
 
-import React, { useRef, useState, useEffect, useCallback } from "react";
-import { Canvas } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
-import * as THREE from "three";
-import gsap from "gsap";
+import React, { useState } from "react";
 import { useMessageDetails } from "@/hooks/useMessageDetails";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Play, RotateCcw, Loader2 } from "lucide-react";
-
-// The 3D Avatar Model Component
-function AvatarModel({ sequence, isPlaying, onFinish }: { sequence: any[], isPlaying: boolean, onFinish: () => void }) {
-  const { scene } = useGLTF("https://models.readyplayer.me/69360640347390125d578f7f.glb");
-  const avatarRef = useRef<THREE.Group>(null);
-
-  const playSequence = useCallback(() => {
-    if (!avatarRef.current || !sequence || sequence.length === 0) return;
-
-    const avatar = avatarRef.current;
-    let cumulativeTime = 0;
-
-    sequence.forEach((step, index) => {
-      setTimeout(() => {
-        Object.entries(step.boneRotations).forEach(([boneName, rot]: any) => {
-          const bone = avatar.getObjectByName(boneName);
-          if (bone) {
-            gsap.to(bone.rotation, {
-              x: rot.x,
-              y: rot.y,
-              z: rot.z,
-              duration: step.duration_ms / 1000,
-              ease: "power2.out"
-            });
-          }
-        });
-
-        if (index === sequence.length - 1) {
-          setTimeout(onFinish, step.duration_ms);
-        }
-      }, cumulativeTime);
-      
-      cumulativeTime += step.duration_ms;
-    });
-  }, [sequence, onFinish]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      playSequence();
-    }
-  }, [isPlaying, playSequence]);
-
-  return <primitive ref={avatarRef} object={scene} scale={1.5} position={[0, -1.5, 0]} />;
-}
+import { LandmarkSkeleton } from "./landmark-skeleton";
+import { BoneRotationAvatar } from "./bone-rotation-avatar";
+import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
 
 interface SignLanguageModalProps {
   messageId: string | null;
@@ -78,16 +33,34 @@ export function SignLanguageModal({ messageId, isOpen, onClose }: SignLanguageMo
               <Loader2 className="animate-spin size-8 text-[#D4AF37]" />
             </div>
           ) : (
-            <Canvas camera={{ position: [0, 1, 3] }}>
-              <ambientLight intensity={0.8} />
-              <directionalLight position={[2, 5, 2]} />
-              <AvatarModel 
-                sequence={details?.motion_sequence?.sequence || []} 
-                isPlaying={isPlaying}
-                onFinish={() => setIsPlaying(false)}
-              />
-              <OrbitControls enablePan={false} minDistance={1} maxDistance={5} />
-            </Canvas>
+            <div className="w-full h-full min-h-[300px]">
+              {(() => {
+                const seq = details?.motion_sequence?.sequence ?? [];
+                if (seq.length > 0 && seq.some((f: unknown) => isLandmarkFrame(f))) {
+                  return (
+                    <LandmarkSkeleton
+                      sequence={seq}
+                      isPlaying={isPlaying}
+                      onFinish={() => setIsPlaying(false)}
+                      width={600}
+                      height={400}
+                      className="w-full h-full"
+                    />
+                  );
+                }
+                if (seq.length > 0 && seq.some((f: unknown) => isLegacyFrame(f))) {
+                  return (
+                    <BoneRotationAvatar
+                      sequence={seq}
+                      isPlaying={isPlaying}
+                      onFinish={() => setIsPlaying(false)}
+                      className="w-full h-full"
+                    />
+                  );
+                }
+                return null;
+              })()}
+            </div>
           )}
 
           {/* Controls Overlay */}

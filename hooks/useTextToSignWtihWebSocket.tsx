@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTextToSign } from "./useTextToSign";
 import { useTextToSignWebSocket } from "./useTextToSignWebSocket";
 import { useSession } from "next-auth/react";
+import type { TextToSignCompletedEvent } from "@/lib/text-to-sign-types";
 
 export function useTextToSignWithWebSocket() {
   const { data: session } = useSession();
@@ -33,11 +34,24 @@ export function useTextToSignWithWebSocket() {
     onMessage: (message: any) => {
       console.log("📨 [WebSocket] Message received:", message);
 
-      const currentMessageId = activeMessageIdRef.current;
-      const currentConversationId = activeConversationIdRef.current;
+      const currentMessageId =
+        activeMessageIdRef.current ||
+        (message as TextToSignCompletedEvent).conversation_message_id;
+      const currentConversationId =
+        activeConversationIdRef.current ||
+        (message as TextToSignCompletedEvent).conversation_id;
+
+      // Handle text_to_sign_completed event (new LandmarkFrame format)
+      const isCompletedEvent =
+        message.type === "text_to_sign_completed" || message.status === "completed";
 
       if (currentMessageId && currentConversationId) {
         // Update the specific message in the cache
+        const outputPreview =
+          (message as TextToSignCompletedEvent).pose_count != null
+            ? `Generated ${(message as TextToSignCompletedEvent).pose_count} pose(s)`
+            : message.message || message.translation;
+
         queryClient.setQueryData(
           ["conversations", currentConversationId],
           (oldData: any) => {
@@ -57,22 +71,45 @@ export function useTextToSignWithWebSocket() {
                 msg.id === currentMessageId
                   ? {
                       ...msg,
-                      status: message.status,
-                      output_preview:
-                        message.message ||
-                        message.translation ||
-                        msg.output_preview,
+                      status: message.status ?? "completed",
+                      output_preview: outputPreview || msg.output_preview,
                     }
                   : msg
               ),
             };
           }
         );
+
+        // When we get text_to_sign_completed with motion_sequence, update message details cache
+        // so the UI can show the animation without waiting for a refetch
+        const motionSeq = (message as TextToSignCompletedEvent).motion_sequence;
+        if (isCompletedEvent && motionSeq?.sequence?.length) {
+          queryClient.setQueryData(
+            ["messages", currentMessageId, "details"],
+            (old: any) => ({
+              ...(old ?? {}),
+              message_id: currentMessageId,
+              conversation_id: currentConversationId,
+              status: "completed",
+              motion_sequence: motionSeq,
+              glosses: (message as TextToSignCompletedEvent).glosses ?? [],
+              gloss_description: (message as TextToSignCompletedEvent).gloss_description ?? "",
+              pose_count: (message as TextToSignCompletedEvent).pose_count ?? motionSeq.sequence.length,
+            })
+          );
+        }
       }
 
       // If finished, clean up and refresh
-      if (message.status === "completed" || message.status === "error") {
-        console.log("✅ Translation finished with status:", message.status);
+      if (isCompletedEvent || message.status === "error") {
+        console.log("✅ Translation finished with status:", message.status ?? "completed");
+
+        // Invalidate message details so it refetches from server (in case we didn't have full data)
+        if (currentMessageId) {
+          queryClient.invalidateQueries({
+            queryKey: ["messages", currentMessageId, "details"],
+          });
+        }
 
         // Close WebSocket
         setWebsocketUrl(null);
