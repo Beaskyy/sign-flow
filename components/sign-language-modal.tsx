@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Play, RotateCcw, Loader2 } from "lucide-react";
 import { LandmarkSkeleton } from "./landmark-skeleton";
-import { BoneRotationAvatar } from "./bone-rotation-avatar";
+import { BoneRotationAvatar, type BoneRotationFrame } from "./bone-rotation-avatar";
 import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
 
 interface SignLanguageModalProps {
@@ -51,7 +51,7 @@ export function SignLanguageModal({ messageId, isOpen, onClose }: SignLanguageMo
                 if (seq.length > 0 && seq.some((f: unknown) => isLegacyFrame(f))) {
                   return (
                     <BoneRotationAvatar
-                      sequence={seq}
+                      sequence={seq as unknown as BoneRotationFrame[]}
                       isPlaying={isPlaying}
                       onFinish={() => setIsPlaying(false)}
                       className="w-full h-full"

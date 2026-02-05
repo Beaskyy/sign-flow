@@ -6,7 +6,7 @@ import { OrbitControls, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import gsap from "gsap";
 
-interface BoneRotationFrame {
+export interface BoneRotationFrame {
   type?: string;
   boneRotations?: Record<string, { x: number; y: number; z: number }>;
   duration_ms: number;
