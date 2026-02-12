@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton"; // Assuming you have shadcn
 
 export const ConversationSkeleton = () => {
   return (
-    <div className="flex flex-col gap-4 w-full max-w-3xl animate-pulse">
+    <div className="flex flex-col gap-4 w-full animate-pulse">
       
       {/* Avatar Skeleton */}
       <div className="relative min-w-[343px] lg:w-full h-[456px] bg-gray-200 rounded-lg overflow-hidden flex flex-col">

@@ -104,7 +104,7 @@ export default function ConversationPage() {
 
   return (
     <main className="flex justify-center items-center lg:ml-10 lg:mr-9 mx-4 h-[calc(100vh-80px)]">
-      <div className="flex flex-col gap-4 w-full max-w-3xl">
+      <div className="flex flex-col gap-4 w-full">
         
         {/* Avatar with Processing State */}
         <AvatarModels 

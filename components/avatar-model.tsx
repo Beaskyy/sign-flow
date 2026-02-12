@@ -45,7 +45,7 @@ export const AvatarModels = ({
         </p>
       </div>
 
-      {/* Motion display: LandmarkFrame (new) or boneRotations (legacy) */}
+      {/* Motion display: LandmarkFrame (new, 2D landmarks) or boneRotations (legacy 3D avatar) */}
       <div className="relative flex-1 w-full bg-[#E7E7E7CC] group flex items-center justify-center">
         {hasData && currentSequence.some((f) => isLandmarkFrame(f)) ? (
           <LandmarkSkeleton
