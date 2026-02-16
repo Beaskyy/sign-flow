@@ -82,7 +82,7 @@ export function BoneRotationAvatar({
 
   return (
     <div className={`w-full h-full min-h-[200px] ${className}`}>
-      <Canvas camera={{ position: [0, 0.5, 3] }}>
+      <Canvas camera={{ position: [0, 1.2, 3], fov: 35 }}>
         <ambientLight intensity={0.8} />
         <directionalLight position={[2, 5, 2]} />
         <AvatarModel
@@ -90,7 +90,13 @@ export function BoneRotationAvatar({
           isPlaying={isPlaying}
           onFinish={onFinish}
         />
-        <OrbitControls enablePan={false} minDistance={1} maxDistance={5} enableZoom={false} />
+        <OrbitControls
+          enablePan={false}
+          minDistance={1}
+          maxDistance={5}
+          enableZoom={false}
+          target={[0, 0.7, 0]}
+        />
       </Canvas>
     </div>
   );
