@@ -2,20 +2,12 @@
 
 import React, { useState } from "react";
 import { useMessageDetails } from "@/hooks/useMessageDetails";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Play, RotateCcw, Loader2 } from "lucide-react";
-import { LandmarkSkeleton } from "./landmark-skeleton";
-import {
-  BoneRotationAvatar,
-  type BoneRotationFrame,
-} from "./bone-rotation-avatar";
+import { BoneRotationAvatar, type BoneRotationFrame } from "./bone-rotation-avatar";
 import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
+import { landmarkSequenceToBoneSequence } from "@/lib/landmark-to-bones";
 
 interface SignLanguageModalProps {
   messageId: string | null;
@@ -23,11 +15,7 @@ interface SignLanguageModalProps {
   onClose: () => void;
 }
 
-export function SignLanguageModal({
-  messageId,
-  isOpen,
-  onClose,
-}: SignLanguageModalProps) {
+export function SignLanguageModal({ messageId, isOpen, onClose }: SignLanguageModalProps) {
   const { data: details, isLoading } = useMessageDetails(messageId || "");
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -36,9 +24,7 @@ export function SignLanguageModal({
       <DialogContent className="max-w-3xl h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Sign Language Translation</DialogTitle>
-          <p className="text-sm text-muted-foreground italic">
-            "{details?.input_preview}"
-          </p>
+          <p className="text-sm text-muted-foreground italic">"{details?.input_preview}"</p>
         </DialogHeader>
 
         <div className="flex-1 bg-slate-50 rounded-lg relative overflow-hidden">
@@ -50,25 +36,17 @@ export function SignLanguageModal({
             <div className="w-full h-full min-h-[300px]">
               {(() => {
                 const seq = details?.motion_sequence?.sequence ?? [];
-                if (
-                  seq.length > 0 &&
-                  seq.some((f: unknown) => isLandmarkFrame(f))
-                ) {
+                if (seq.length > 0 && seq.some((f: unknown) => isLandmarkFrame(f))) {
                   return (
-                    <LandmarkSkeleton
-                      sequence={seq}
+                    <BoneRotationAvatar
+                      sequence={landmarkSequenceToBoneSequence(seq)}
                       isPlaying={isPlaying}
                       onFinish={() => setIsPlaying(false)}
-                      width={600}
-                      height={400}
                       className="w-full h-full"
                     />
                   );
                 }
-                if (
-                  seq.length > 0 &&
-                  seq.some((f: unknown) => isLegacyFrame(f))
-                ) {
+                if (seq.length > 0 && seq.some((f: unknown) => isLegacyFrame(f))) {
                   return (
                     <BoneRotationAvatar
                       sequence={seq as unknown as BoneRotationFrame[]}
@@ -85,16 +63,12 @@ export function SignLanguageModal({
 
           {/* Controls Overlay */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-            <Button
-              onClick={() => setIsPlaying(true)}
+            <Button 
+              onClick={() => setIsPlaying(true)} 
               disabled={isPlaying || isLoading}
               className="bg-[#D4AF37] hover:bg-[#D4AF37]/90"
             >
-              {isPlaying ? (
-                <Loader2 className="animate-spin mr-2" />
-              ) : (
-                <Play className="mr-2" />
-              )}
+              {isPlaying ? <Loader2 className="animate-spin mr-2" /> : <Play className="mr-2" />}
               {isPlaying ? "Playing..." : "Play Sign"}
             </Button>
             <Button variant="outline" onClick={() => setIsPlaying(false)}>

@@ -32,14 +32,20 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  // If the user is trying to access a protected route without authentication, redirect to login
-  if (!isPublicPath && !token) {
+  // Treat missing or invalid/expired tokens as unauthenticated
+  const isTokenInvalid =
+    !token ||
+    token.error === "RefreshAccessTokenError" ||
+    !token.accessToken;
+
+  // If the user is trying to access a protected route without a valid token, redirect to login
+  if (!isPublicPath && isTokenInvalid) {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If the user is authenticated and trying to access a public path, redirect to home
-  if (isPublicPath && token) {
+  // If the user has a valid token and is trying to access a public path, redirect to home
+  if (isPublicPath && !isTokenInvalid) {
     const homeUrl = new URL("/", request.url);
     return NextResponse.redirect(homeUrl);
   }
