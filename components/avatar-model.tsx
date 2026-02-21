@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Popover,
   PopoverContent,
@@ -10,8 +10,10 @@ import { RotateCcw, Play, Sparkles } from "lucide-react";
 import { ConversationHistory } from "./conversation-history";
 import Image from "next/image";
 import { BoneRotationAvatar } from "./bone-rotation-avatar";
-import { landmarkSequenceToBoneSequence } from "@/lib/landmark-to-bones";
+import { LandmarkSkeletonSvg } from "./landmark-skeleton-svg";
 import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
+import type { LandmarkFrame } from "@/lib/text-to-sign-types";
+import { landmarkSequenceToBoneSequenceKalidokit } from "@/lib/landmark-to-bones-kalidokit";
 
 interface AvatarProps {
   text: string;
@@ -38,6 +40,12 @@ export const AvatarModels = ({
   const [openHistory, setOpenHistory] = useState(false);
 
   const hasData = currentSequence && currentSequence.length > 0;
+  const isLandmark = hasData && currentSequence.some((f) => isLandmarkFrame(f));
+  const boneSeqFromLandmarks = useMemo(() => {
+    if (!isLandmark || !currentSequence?.length) return [];
+    const landmarkSeq = currentSequence.filter((f): f is LandmarkFrame => isLandmarkFrame(f));
+    return landmarkSequenceToBoneSequenceKalidokit(landmarkSeq);
+  }, [isLandmark, currentSequence]);
 
   return (
     <div className="relative min-w-[343px] lg:w-full h-[456px] bg-[#E7E7E7CC] rounded-lg overflow-hidden flex flex-col">
@@ -50,11 +58,11 @@ export const AvatarModels = ({
         </p>
       </div>
 
-      {/* Motion display: LandmarkFrame (new -> converted to boneRotations) or legacy boneRotations */}
+      {/* Motion display: LandmarkFrame → Kalidokit → GLB, or legacy boneRotations (GLB), or SVG fallback */}
       <div className="relative flex-1 w-full bg-[#E7E7E7CC] group flex items-center justify-center">
-        {hasData && currentSequence.some((f) => isLandmarkFrame(f)) ? (
+        {isLandmark && boneSeqFromLandmarks.length > 0 ? (
           <BoneRotationAvatar
-            sequence={landmarkSequenceToBoneSequence(currentSequence)}
+            sequence={boneSeqFromLandmarks}
             isPlaying={isPlaying}
             onFinish={() => onPlayStatusChange(false)}
             className="w-full h-full rounded-b-lg"
