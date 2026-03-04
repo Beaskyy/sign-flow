@@ -10,52 +10,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Play, RotateCcw, Loader2 } from "lucide-react";
-import { BoneRotationAvatar } from "./bone-rotation-avatar";
+import { LandmarkSkeleton } from "./landmark-skeleton";
+import {
+  BoneRotationAvatar,
+  type BoneRotationFrame,
+} from "./bone-rotation-avatar";
 import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
-import type { LandmarkFrame } from "@/lib/text-to-sign-types";
-import { landmarkSequenceToBoneSequenceKalidokit } from "@/lib/landmark-to-bones-kalidokit";
-import type { BoneRotationFrame } from "./bone-rotation-avatar";
-
-function ModalMotion({
-  sequence,
-  isPlaying,
-  onFinish,
-}: {
-  sequence: unknown[];
-  isPlaying: boolean;
-  onFinish: () => void;
-}) {
-  const isLandmark = sequence.length > 0 && sequence.some((f: unknown) => isLandmarkFrame(f));
-  const isLegacy = sequence.length > 0 && sequence.some((f: unknown) => isLegacyFrame(f));
-  const boneSeqFromLandmarks = useMemo(() => {
-    if (!isLandmark || !sequence.length) return [];
-    const landmarkSeq = sequence.filter((f): f is LandmarkFrame => isLandmarkFrame(f));
-    return landmarkSequenceToBoneSequenceKalidokit(landmarkSeq);
-  }, [isLandmark, sequence]);
-
-  if (sequence.length === 0) return null;
-  if (isLandmark && boneSeqFromLandmarks.length > 0) {
-    return (
-      <BoneRotationAvatar
-        sequence={boneSeqFromLandmarks}
-        isPlaying={isPlaying}
-        onFinish={onFinish}
-        className="w-full h-full"
-      />
-    );
-  }
-  if (isLegacy) {
-    return (
-      <BoneRotationAvatar
-        sequence={sequence as BoneRotationFrame[]}
-        isPlaying={isPlaying}
-        onFinish={onFinish}
-        className="w-full h-full"
-      />
-    );
-  }
-  return null;
-}
 
 interface SignLanguageModalProps {
   messageId: string | null;
@@ -88,11 +48,38 @@ export function SignLanguageModal({
             </div>
           ) : (
             <div className="w-full h-full min-h-[300px]">
-              <ModalMotion
-                sequence={details?.motion_sequence?.sequence ?? []}
-                isPlaying={isPlaying}
-                onFinish={() => setIsPlaying(false)}
-              />
+              {(() => {
+                const seq = details?.motion_sequence?.sequence ?? [];
+                if (
+                  seq.length > 0 &&
+                  seq.some((f: unknown) => isLandmarkFrame(f))
+                ) {
+                  return (
+                    <LandmarkSkeleton
+                      sequence={seq}
+                      isPlaying={isPlaying}
+                      onFinish={() => setIsPlaying(false)}
+                      width={600}
+                      height={400}
+                      className="w-full h-full"
+                    />
+                  );
+                }
+                if (
+                  seq.length > 0 &&
+                  seq.some((f: unknown) => isLegacyFrame(f))
+                ) {
+                  return (
+                    <BoneRotationAvatar
+                      sequence={seq as unknown as BoneRotationFrame[]}
+                      isPlaying={isPlaying}
+                      onFinish={() => setIsPlaying(false)}
+                      className="w-full h-full"
+                    />
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
 
