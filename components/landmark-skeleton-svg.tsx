@@ -94,8 +94,8 @@ function SkeletonPaths({
 
   const strokeColor = "#B8860B";
   const jointColor = "#1a1a1a";
-  const strokeWidth = 2;
-  const r = 2;
+  const strokeWidth = 3;
+  const r = 5;
 
   return (
     <g>

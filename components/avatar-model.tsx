@@ -17,6 +17,7 @@ import { landmarkSequenceToBoneSequenceKalidokit } from "@/lib/landmark-to-bones
 
 interface AvatarProps {
   text: string;
+  responseText?: string;
   currentSequence: any[];
   isPlaying: boolean;
   onPlayStatusChange: (status: boolean) => void;
@@ -28,6 +29,7 @@ interface AvatarProps {
 
 export const AvatarModels = ({
   text,
+  responseText,
   currentSequence,
   isPlaying,
   onPlayStatusChange,
@@ -50,12 +52,19 @@ export const AvatarModels = ({
   return (
     <div className="relative min-w-[343px] lg:w-full h-[456px] bg-[#E7E7E7CC] rounded-lg overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="flex justify-center items-center p-1.5 h-9 bg-[#D2D2D2BA] rounded-t-lg z-10 transition-colors duration-300">
+      <div className="flex flex-col justify-center items-center py-1 px-2 min-h-9 bg-[#D2D2D2BA] rounded-t-lg z-10 transition-colors duration-300">
         <p
-          className={`text-sm font-medium truncate max-w-[90%] ${isProcessing ? "text-[#D4AF37] animate-pulse" : "text-[#333333]"}`}
+          className={`text-sm font-medium truncate max-w-[90%] ${
+            isProcessing ? "text-[#D4AF37] animate-pulse" : "text-[#333333]"
+          }`}
         >
           {isProcessing ? "Translating text to sign..." : text}
         </p>
+        {!isProcessing && responseText?.trim() ? (
+          <p className="text-[11px] text-[#404040B2] truncate max-w-[90%]">
+            {responseText}
+          </p>
+        ) : null}
       </div>
 
       {/* Motion display: LandmarkFrame (new, 2D landmarks) or boneRotations (legacy 3D avatar) */}
@@ -104,8 +113,8 @@ export const AvatarModels = ({
             className="absolute inset-0 flex items-center justify-center bg-black/5 cursor-pointer z-20 hover:bg-black/10 transition-colors"
             onClick={onReplay}
           >
-            <div className="bg-white/90 p-3 rounded-full shadow-lg transform transition-transform hover:scale-110">
-              <Play className="fill-current text-[#D4AF37] size-8 ml-1" />
+            <div className="bg-white/90 p-3 rounded-full shadow-lg transform transition-transform hover:scale-110 flex items-center justify-center">
+              <Play className="fill-current text-[#D4AF37] size-8" />
             </div>
           </div>
         )}

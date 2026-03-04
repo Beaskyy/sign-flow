@@ -19,6 +19,7 @@ export default function ConversationPage() {
   const [currentSequence, setCurrentSequence] = useState<any[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [displayedText, setDisplayedText] = useState("Type, speak, or upload to begin");
+  const [displayedResponse, setDisplayedResponse] = useState<string>("");
   
   const [targetMessageId, setTargetMessageId] = useState<string>("");
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
@@ -42,6 +43,7 @@ export default function ConversationPage() {
       const lastMessage = conversation.messages[conversation.messages.length - 1];
       if (lastMessage) {
         if (lastMessage.input_preview) setDisplayedText(lastMessage.input_preview);
+        if (lastMessage.output_preview) setDisplayedResponse(lastMessage.output_preview);
         setShouldAutoPlay(false);
         setTargetMessageId(lastMessage.id);
       }
@@ -52,6 +54,12 @@ export default function ConversationPage() {
   useEffect(() => {
     if (messageDetails && messageDetails.motion_sequence?.sequence) {
       setCurrentSequence(messageDetails.motion_sequence.sequence);
+      const responseText =
+        messageDetails.gloss_description ||
+        (messageDetails.glosses?.length ? messageDetails.glosses.join(" ") : "") ||
+        messageDetails.output_preview ||
+        "";
+      setDisplayedResponse(responseText);
       // Data arrived, stop processing overlay
       setIsProcessing(false); 
       
@@ -65,6 +73,13 @@ export default function ConversationPage() {
   // Handler: Message Sent (WebSocket or Fallback)
   const handleMessageSent = (text: string, responseData: any) => {
     setDisplayedText(text);
+    setDisplayedResponse(
+      responseData?.gloss_description ||
+        (Array.isArray(responseData?.glosses) ? responseData.glosses.join(" ") : "") ||
+        responseData?.output_preview ||
+        responseData?.message ||
+        ""
+    );
 
     const sequence = responseData?.motion_sequence?.sequence || responseData?.data?.motion_sequence?.sequence;
 
@@ -109,6 +124,7 @@ export default function ConversationPage() {
         {/* Avatar with Processing State */}
         <AvatarModels 
           text={displayedText}
+          responseText={displayedResponse}
           currentSequence={currentSequence}
           isPlaying={isPlaying}
           onPlayStatusChange={setIsPlaying}
@@ -117,6 +133,7 @@ export default function ConversationPage() {
           onPlayHistoryItem={(item) => {
              // Handle history click
              setDisplayedText(item.input_preview);
+             setDisplayedResponse(item.output_preview || "");
              setShouldAutoPlay(true);
              setTargetMessageId(item.id);
              setIsProcessing(true); // Show loader while fetching details

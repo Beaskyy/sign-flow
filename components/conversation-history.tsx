@@ -52,6 +52,11 @@ const ChatHistory = ({
                       <p className="text-xs text-[#333333] truncate font-medium">
                         {item.input_preview || "Untitled"}
                       </p>
+                      {item.status === "completed" && item.output_preview ? (
+                        <p className="text-[9px] text-[#666666] truncate">
+                          {item.output_preview}
+                        </p>
+                      ) : null}
                       {item.status !== 'completed' && (
                          <p className="text-[9px] text-blue-500">Processing...</p>
                       )}

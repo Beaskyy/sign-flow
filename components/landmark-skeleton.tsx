@@ -27,10 +27,29 @@ function drawSkeleton(
   const lineWidth = 2;
   const jointRadius = 4;
 
-  const toCanvas = (p: Vec3) => ({
-    x: p.x * width,
-    y: (1 - p.y) * height, // flip Y: 0=top in canvas
-  });
+  // Backend v2.0 uses normalized coords where:
+  // - x: 0 (left) -> 1 (right)
+  // - y: 0 (top) -> 1 (bottom)
+  // Canvas uses the same y direction, so we do NOT flip y.
+  // We also apply slight centering + padding so the figure doesn't hug edges.
+  const PADDING_RATIO = 0.12;
+  const NORMALIZED_SCALE = 0.75;
+  const CENTER = 0.5;
+
+  const toCanvas = (p: Vec3) => {
+    const innerW = width * (1 - PADDING_RATIO * 2);
+    const innerH = height * (1 - PADDING_RATIO * 2);
+    const offsetX = width * PADDING_RATIO;
+    const offsetY = height * PADDING_RATIO;
+
+    const sx = CENTER + (p.x - CENTER) * NORMALIZED_SCALE;
+    const sy = CENTER + (p.y - CENTER) * NORMALIZED_SCALE;
+
+    return {
+      x: offsetX + sx * innerW,
+      y: offsetY + sy * innerH,
+    };
+  };
 
   const drawConnections = (points: Vec3[], connections: [number, number][]) => {
     if (!points || points.length === 0) return;
