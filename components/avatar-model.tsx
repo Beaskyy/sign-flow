@@ -43,10 +43,9 @@ export const AvatarModels = ({
 
   const hasData = currentSequence && currentSequence.length > 0;
   const isLandmark = hasData && currentSequence.some((f) => isLandmarkFrame(f));
-  const boneSeqFromLandmarks = useMemo(() => {
+  const landmarkSequence = useMemo(() => {
     if (!isLandmark || !currentSequence?.length) return [];
-    const landmarkSeq = currentSequence.filter((f): f is LandmarkFrame => isLandmarkFrame(f));
-    return landmarkSequenceToBoneSequenceKalidokit(landmarkSeq);
+    return currentSequence.filter((f): f is LandmarkFrame => isLandmarkFrame(f));
   }, [isLandmark, currentSequence]);
 
   return (
@@ -85,7 +84,19 @@ export const AvatarModels = ({
           />
         ) : hasData ? (
           <p className="text-sm text-gray-500">Unsupported motion format</p>
-        ) : null}
+        ) : isProcessing ? null : (
+          <div className="flex flex-col items-center justify-center w-full h-full p-8 animate-in fade-in zoom-in duration-500">
+            <div className="relative w-full max-w-[280px] aspect-[258/377]">
+               <Image 
+                src="/avatar.png" 
+                alt="Avatar placeholder" 
+                fill 
+                className="object-contain drop-shadow-sm" 
+                priority
+              />
+            </div>
+          </div>
+        )}
 
         {/* --- STATE 1: PROCESSING OVERLAY (WebSocket) --- */}
         {isProcessing && (

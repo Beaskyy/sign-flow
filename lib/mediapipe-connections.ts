@@ -44,6 +44,8 @@ export const POSE_CONNECTIONS: [number, number][] = [
   [16, 22],
   [17, 19],
   [18, 20],
+  [11, 0],
+  [12, 0], // Shoulder to nose for the 'V' neck shape
 ];
 
 /** MediaPipe Hands - 21 landmarks per hand */

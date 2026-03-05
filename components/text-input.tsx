@@ -71,6 +71,14 @@ export const TextInput = ({
     adjustTextareaHeight();
   }, [text]);
 
+  // Focus textarea on mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+       textareaRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (initialText && conversationId && !hasAutoSent.current) {
       hasAutoSent.current = true;
