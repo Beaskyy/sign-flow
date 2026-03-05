@@ -102,10 +102,33 @@ function SkeletonPaths({
   // 1. Pose Skeleton (Gold)
   addConnections(frame.pose, POSE_CONNECTIONS, "#D4AF37", 3);
 
-  const strokeColor = "#B8860B";
-  const jointColor = "#1a1a1a";
-  const strokeWidth = 3;
-  const r = 5;
+  // 2. Hands (Green and Purple)
+  addConnections(frame.left_hand, HAND_CONNECTIONS, "#FFD700", 2.5);
+  addConnections(frame.right_hand, HAND_CONNECTIONS, "#FFD700", 2.5);
+
+  // 3. Face Details (Yellow/Orange)
+  if (frame.face) {
+    addConnections(frame.face, LEFT_EYE_CONNECTIONS, "#FFD700", 2);
+    addConnections(frame.face, RIGHT_EYE_CONNECTIONS, "#FFD700", 2);
+    addConnections(frame.face, MOUTH_CONNECTIONS, "#FFD700", 2);
+  }
+
+  // 4. Bridge: Connect Pose Wrists to Hand Wrists (Gold)
+  const pose = frame.pose;
+  if (pose && pose.length > 16) {
+    // Left Hand Bridge (Pose 15 -> Left Hand 0)
+    if (frame.left_hand && frame.left_hand.length > 0) {
+      const a = toSvg(pose[15]);
+      const b = toSvg(frame.left_hand[0]);
+      lines.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, color: "#D4AF37", width: 3 });
+    }
+    // Right Hand Bridge (Pose 16 -> Right Hand 0)
+    if (frame.right_hand && frame.right_hand.length > 0) {
+      const a = toSvg(pose[16]);
+      const b = toSvg(frame.right_hand[0]);
+      lines.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, color: "#D4AF37", width: 3 });
+    }
+  }
 
   return (
     <g>

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Play, RotateCcw, Loader2 } from "lucide-react";
-import { LandmarkSkeleton } from "./landmark-skeleton";
+import { LandmarkSkeletonSvg } from "./landmark-skeleton-svg";
 import {
   BoneRotationAvatar,
   type BoneRotationFrame,
@@ -55,8 +55,8 @@ export function SignLanguageModal({
                   seq.some((f: unknown) => isLandmarkFrame(f))
                 ) {
                   return (
-                    <LandmarkSkeleton
-                      sequence={seq}
+                    <LandmarkSkeletonSvg
+                      sequence={seq as any}
                       isPlaying={isPlaying}
                       onFinish={() => setIsPlaying(false)}
                       width={600}
