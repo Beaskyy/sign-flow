@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
   // Define paths that should be considered public (accessible without authentication)
   const publicPaths = [
     "/login",
+    "/register",
     "/welcome",
   ];
 

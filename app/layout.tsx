@@ -6,6 +6,7 @@ import { ContextProvider } from "@/providers/ContextProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NextTopLoader from 'nextjs-toploader';
 import ClientOnly from "@/components/client-only";
+import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -42,6 +43,7 @@ export default function RootLayout({
             </Providers>
           {/* </SessionProvider> */}
         </ClientOnly>
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );

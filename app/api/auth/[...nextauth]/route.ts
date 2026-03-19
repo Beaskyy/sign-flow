@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 /* -------------------------------------------------------------------------- */
 /*                               Type Augments                                */
@@ -124,6 +125,47 @@ const handler = NextAuth({
         },
       },
     }),
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) return null;
+        try {
+          const response = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/auth/login/`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: credentials.email,
+                password: credentials.password,
+              }),
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            console.error("❌ Login failed:", data);
+            return null;
+          }
+
+          return {
+            id: String(data.user.pk),
+            name: data.user.fullname,
+            email: data.user.email,
+            accessToken: data.tokens.access,
+            refreshToken: data.tokens.refresh,
+          };
+        } catch (error) {
+          console.error("❌ Auth error:", error);
+          return null;
+        }
+      },
+    }),
   ],
 
   secret: process.env.NEXTAUTH_SECRET,
@@ -139,6 +181,27 @@ const handler = NextAuth({
       // Handle session update if needed
       if (trigger === "update" && updateSession) {
         token.user = { ...token.user, ...updateSession };
+      }
+
+      /**
+       * CREDENTIALS LOGIN:
+       * email/password → Your Backend → Your JWTs
+       */
+      const user = arguments[0].user; // Access the user object passed from authorize
+      if (user && !account) {
+        const now = Date.now();
+        token.accessToken = user.accessToken;
+        token.refreshToken = user.refreshToken;
+        token.accessTokenIssuedAt = now;
+        token.refreshTokenIssuedAt = now;
+        token.sub = user.id;
+        token.user = {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        };
+        console.log("✅ Credentials login - Tokens issued at:", new Date(now));
+        return token;
       }
 
       /**
