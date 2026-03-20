@@ -150,7 +150,7 @@ const handler = NextAuth({
 
           if (!response.ok) {
             console.error("❌ Login failed:", data);
-            return null;
+            throw new Error(data.error || data.message || "Login failed");
           }
 
           return {

@@ -60,10 +60,10 @@ const Register = () => {
       <div className="flex flex-col justify-center items-center gap-12">
         <Image src="/logo.png" alt="logo" width={130} height={130} className="md:size-[130px] size-[80px]" />
         <div className="flex flex-col gap-2">
-          <h2 className="text-black md:text-4xl text-2xl tracking-[-1.5px] font-semibold leading-[120%]">
+          <h2 className="text-black md:text-4xl text-xl tracking-[-1.5px] font-semibold leading-[120%]">
             Join SignFlow.
           </h2>
-          <p className="text-[#333333] md:text-xl text-sm font-medium md:w-full w-[292px]">
+          <p className="text-[#333333] md:text-xl text-xs font-medium md:w-full w-[292px]">
             Start your journey of seamless sign translation.
           </p>
         </div>
@@ -71,7 +71,7 @@ const Register = () => {
 
       <div className="flex flex-col items-center gap-6 w-full max-w-[343px] px-4 my-8">
         <form onSubmit={handleRegister} className="flex flex-col gap-4 w-full">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
             <div className="flex flex-col gap-2 text-left">
               <Label htmlFor="first_name" className="text-sm font-medium text-[#454545]">
                 First Name

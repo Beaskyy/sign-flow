@@ -23,9 +23,16 @@ export async function apiClient<T>(
   })
 
   if (!res.ok) {
-    // Do NOT auto sign the user out here; just surface the error.
-    // NextAuth's JWT callback + refresh logic will handle expired tokens.
-    throw new Error(`API Error: ${res.status} ${res.statusText}`)
+    let errorData;
+    try {
+      errorData = await res.json();
+    } catch {
+      // Ignore if parsing fails
+    }
+    
+    // Extract error message from 'error' or 'message' fields, otherwise fallback to default
+    const errorMessage = errorData?.error || errorData?.message || `API Error: ${res.status} ${res.statusText}`;
+    throw new Error(errorMessage);
   }
 
   return res.json()
