@@ -177,7 +177,7 @@ const handler = NextAuth({
 
   callbacks: {
     /* ------------------------------- JWT ---------------------------------- */
-    async jwt({ token, account, trigger, session: updateSession }) {
+    async jwt({ token, user, account, trigger, session: updateSession }) {
       // Handle session update if needed
       if (trigger === "update" && updateSession) {
         token.user = { ...token.user, ...updateSession };
@@ -187,18 +187,18 @@ const handler = NextAuth({
        * CREDENTIALS LOGIN:
        * email/password → Your Backend → Your JWTs
        */
-      const user = arguments[0].user; // Access the user object passed from authorize
-      if (user && !account) {
+      if (user && account?.provider === "credentials") {
+        const u = user as any;
         const now = Date.now();
-        token.accessToken = user.accessToken;
-        token.refreshToken = user.refreshToken;
+        token.accessToken = u.accessToken;
+        token.refreshToken = u.refreshToken;
         token.accessTokenIssuedAt = now;
         token.refreshTokenIssuedAt = now;
-        token.sub = user.id;
+        token.sub = u.id;
         token.user = {
-          id: user.id,
-          name: user.name,
-          email: user.email,
+          id: u.id,
+          name: u.name,
+          email: u.email,
         };
         console.log("✅ Credentials login - Tokens issued at:", new Date(now));
         return token;
