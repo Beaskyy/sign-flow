@@ -1,7 +1,7 @@
 /**
  * animator.ts — Controls landmark playback and scaling.
  */
-import { drawFrame, getCanvasSize } from './renderer';
+import { drawFrame, getCanvasSize, app } from './renderer';
 
 export interface Landmark {
   x: number;
@@ -16,6 +16,9 @@ export interface Frame {
   right_hand?: Landmark[];
   face?: Landmark[];
 }
+
+// Upper body landmark indices (head to waist, inclusive of hips)
+const UPPER_BODY_MAX_INDEX = 24;
 
 let frames: Frame[] = [];
 let currentFrameIdx = 0;
@@ -62,14 +65,26 @@ export function getFrameCount(): number { return frames.length; }
 export function getCurrentFrame(): number { return currentFrameIdx; }
 
 function applyFrame(frame: Frame) {
-  if (!frame) return;
+  const currentApp = app as any;
+  if (!frame || !currentApp) return;
 
-  const container = document.getElementById('pixi-container');
-  if (!container) return;
-  const { w, h } = getCanvasSize(container);
+  let w: number, h: number;
+  try {
+    const screen = currentApp.screen;
+    if (!screen) return;
+    w = screen.width;
+    h = screen.height;
+  } catch {
+    return;
+  }
+  if (w <= 1 || h <= 1) return;
 
+  // Only use upper-body pose landmarks (head to hips) for bounding box
   const allLandmarks: Landmark[] = [];
-  if (frame.pose) allLandmarks.push(...frame.pose);
+  if (frame.pose) {
+    const upperPose = frame.pose.filter((_, i) => i <= UPPER_BODY_MAX_INDEX);
+    allLandmarks.push(...upperPose);
+  }
   if (frame.left_hand) allLandmarks.push(...frame.left_hand);
   if (frame.right_hand) allLandmarks.push(...frame.right_hand);
   if (frame.face) allLandmarks.push(...frame.face);
@@ -88,7 +103,7 @@ function applyFrame(frame: Frame) {
 
   const rangeX = maxX - minX || 1;
   const rangeY = maxY - minY || 1;
-  const padding = 60;
+  const padding = 40;
   const availW = w - padding * 2;
   const availH = h - padding * 2;
   const scale = Math.min(availW / rangeX, availH / rangeY);
@@ -119,7 +134,19 @@ function applyFrame(frame: Frame) {
 }
 
 export function tick() {
-  if (!isPlaying || frames.length === 0) return;
+  const currentApp = app as any;
+  if (frames.length === 0 || !currentApp) return;
+
+  try {
+    if (!currentApp.screen) return;
+  } catch {
+    return;
+  }
+
+  if (!isPlaying) {
+    applyFrame(frames[currentFrameIdx]);
+    return;
+  }
 
   const now = performance.now();
   const deltaTime = (now - lastUpdateTime) * speed;
@@ -137,7 +164,8 @@ export function tick() {
 
     currentFrameIdx++;
     if (currentFrameIdx >= frames.length) {
-      currentFrameIdx = 0;
+      currentFrameIdx = frames.length - 1;
+      isPlaying = false; // Stop at end, don't loop
     }
     lastUpdateTime = now;
   }

@@ -45,9 +45,12 @@ export function parseMotionPayload(data: any): MotionPayload | null {
     return data;
   }
 
-  // 3. Fallback for nested objects (e.g. data.motion_sequence)
+  // 3. Fallback for nested objects (e.g. data.motion_sequence or data.sign_descriptions)
   if (data.motion_sequence) {
     return parseMotionPayload(data.motion_sequence);
+  }
+  if (data.sign_descriptions) {
+    return parseMotionPayload(data.sign_descriptions);
   }
 
   console.warn("⚠️ Unknown motion data format:", data);

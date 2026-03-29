@@ -10,7 +10,7 @@ import { RotateCcw, Play, Sparkles } from "lucide-react";
 import { ConversationHistory } from "./conversation-history";
 import Image from "next/image";
 import { BoneRotationAvatar } from "./bone-rotation-avatar";
-import { LandmarkSkeletonSvg } from "./landmark-skeleton-svg";
+import LandmarkAvatarPixi from "./avatar/LandmarkAvatarPixi";
 import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
 import type { LandmarkFrame } from "@/lib/text-to-sign-types";
 import { landmarkSequenceToBoneSequenceKalidokit } from "@/lib/landmark-to-bones-kalidokit";
@@ -69,7 +69,7 @@ export const AvatarModels = ({
       {/* Motion display: LandmarkFrame (new, 2D landmarks) or boneRotations (legacy 3D avatar) */}
       <div className="relative flex-1 w-full bg-[#E7E7E7CC] group flex items-center justify-center">
         {isLandmark && landmarkSequence.length > 0 ? (
-          <LandmarkSkeletonSvg
+          <LandmarkAvatarPixi
             sequence={landmarkSequence}
             isPlaying={isPlaying}
             onFinish={() => onPlayStatusChange(false)}

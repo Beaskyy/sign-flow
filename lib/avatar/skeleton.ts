@@ -16,18 +16,6 @@ export const POSE_CONNECTIONS: [number, number][] = [
   // Left arm
   [11, 13],  // left shoulder → left elbow
   [13, 15],  // left elbow → left wrist
-
-  // Right leg
-  [24, 26],  // right hip → right knee
-  [26, 28],  // right knee → right ankle
-  [28, 32],  // right ankle → right foot index
-  [28, 30],  // right ankle → right heel
-
-  // Left leg
-  [23, 25],  // left hip → left knee
-  [25, 27],  // left knee → left ankle
-  [27, 31],  // left ankle → left foot index
-  [27, 29],  // left ankle → left heel
 ];
 
 export const POSE_FACE_CONNECTIONS: [number, number][] = [
