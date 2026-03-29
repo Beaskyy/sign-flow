@@ -6,6 +6,7 @@ import { useTextToSign } from "./useTextToSign";
 import { useTextToSignWebSocket } from "./useTextToSignWebSocket";
 import { useSession } from "next-auth/react";
 import type { TextToSignCompletedEvent } from "@/lib/text-to-sign-types";
+import { parseMotionPayload } from "@/lib/avatar/api-utils";
 
 export function useTextToSignWithWebSocket() {
   const { data: session } = useSession();
@@ -82,8 +83,10 @@ export function useTextToSignWithWebSocket() {
 
         // When we get text_to_sign_completed with motion_sequence, update message details cache
         // so the UI can show the animation without waiting for a refetch
-        const motionSeq = (message as TextToSignCompletedEvent).motion_sequence;
-        if (isCompletedEvent && motionSeq?.sequence?.length) {
+        const motionSeq = (message as TextToSignCompletedEvent).motion_sequence || (message as any).sign_descriptions;
+        const decodedMotion = parseMotionPayload(motionSeq);
+
+        if (isCompletedEvent && decodedMotion?.sequence?.length) {
           queryClient.setQueryData(
             ["messages", currentMessageId, "details"],
             (old: any) => ({
@@ -91,10 +94,10 @@ export function useTextToSignWithWebSocket() {
               message_id: currentMessageId,
               conversation_id: currentConversationId,
               status: "completed",
-              motion_sequence: motionSeq,
+              motion_sequence: decodedMotion, // Cache the DECODED version
               glosses: (message as TextToSignCompletedEvent).glosses ?? [],
               gloss_description: (message as TextToSignCompletedEvent).gloss_description ?? "",
-              pose_count: (message as TextToSignCompletedEvent).pose_count ?? motionSeq.sequence.length,
+              pose_count: (message as TextToSignCompletedEvent).pose_count ?? decodedMotion.sequence.length,
             })
           );
         }

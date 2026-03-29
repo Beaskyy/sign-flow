@@ -7,6 +7,7 @@ import { useConversation } from "@/hooks/useConversation";
 import { useMessageDetails } from "@/hooks/useMessageDetails";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
+import { parseMotionPayload } from "@/lib/avatar/api-utils";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -52,12 +53,13 @@ export default function ConversationPage() {
 
   // ... [Existing Message Details Effect] ...
   useEffect(() => {
-    if (messageDetails && messageDetails.motion_sequence?.sequence) {
-      setCurrentSequence(messageDetails.motion_sequence.sequence);
+    const motionData = parseMotionPayload(messageDetails?.motion_sequence || (messageDetails as any)?.sign_descriptions);
+    if (motionData && motionData.sequence) {
+      setCurrentSequence(motionData.sequence);
       const responseText =
-        messageDetails.gloss_description ||
-        (messageDetails.glosses?.length ? messageDetails.glosses.join(" ") : "") ||
-        messageDetails.output_preview ||
+        messageDetails?.gloss_description ||
+        (messageDetails?.glosses?.length ? messageDetails.glosses.join(" ") : "") ||
+        messageDetails?.output_preview ||
         "";
       setDisplayedResponse(responseText);
       // Data arrived, stop processing overlay
@@ -81,7 +83,13 @@ export default function ConversationPage() {
         ""
     );
 
-    const sequence = responseData?.motion_sequence?.sequence || responseData?.data?.motion_sequence?.sequence;
+    const motionData = parseMotionPayload(
+      responseData?.motion_sequence || 
+      responseData?.data?.motion_sequence || 
+      responseData?.sign_descriptions || 
+      responseData?.data?.sign_descriptions
+    );
+    const sequence = motionData?.sequence || [];
 
     if (sequence && Array.isArray(sequence) && sequence.length > 0) {
       // Immediate success
