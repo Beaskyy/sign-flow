@@ -6,7 +6,7 @@ import { ConversationSkeleton } from "@/components/conversation-skeleton"; // Im
 import { useConversation } from "@/hooks/useConversation";
 import { useMessageDetails } from "@/hooks/useMessageDetails";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseMotionPayload } from "@/lib/avatar/api-utils";
 import { useCreateConversation } from "@/hooks/useCreateConversation";
 
@@ -37,27 +37,28 @@ export default function ConversationPage() {
   );
   const { data: messageDetails, isLoading: isDetailsLoading } = useMessageDetails(targetMessageId);
 
+  const hasCreated = useRef(false);
+
   // Handle immediate navigation: If ID is 'new', create the conversation
   useEffect(() => {
-    if (conversationId === "new") {
+    if (conversationId === "new" && !hasCreated.current) {
       if (!initText) {
         router.push("/");
         return;
       }
 
-      if (!createConversation.isPending) {
-         const title = initText.trim().slice(0, 50) + (initText.length > 50 ? "..." : "");
-         
-          createConversation.mutateAsync({ title })
-            .then((newConversation) => {
-              // Replace URL with real ID, keeping initText so TextInput can auto-send
-              router.replace(`/conversations/${newConversation.id}?initText=${encodeURIComponent(initText)}`);
-            })
-           .catch((error) => {
-             console.error("Failed to create conversation on mount:", error);
-             router.push("/");
-           });
-      }
+      hasCreated.current = true;
+      const title = initText.trim().slice(0, 50) + (initText.length > 50 ? "..." : "");
+      
+      createConversation.mutateAsync({ title })
+        .then((newConversation) => {
+          // Replace URL with real ID, keeping initText so TextInput can auto-send
+          router.replace(`/conversations/${newConversation.id}?initText=${encodeURIComponent(initText)}`);
+        })
+        .catch((error) => {
+          console.error("Failed to create conversation on mount:", error);
+          router.push("/");
+        });
     }
   }, [conversationId, initText, router, createConversation]);
 
