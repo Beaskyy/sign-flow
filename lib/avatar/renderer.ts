@@ -19,11 +19,11 @@ export let app: Application | null = null;
 export let gfx: Graphics | null = null;
 
 // ── Color palette ──
-const SKIN     = 0xF5CBA7;   // warm skin
-const SKIN_LT  = 0xFADDBE;   // lighter skin for fills
-const OUTLINE  = 0xC49A6C;   // darker outline
-const HAIR_CLR = 0x4A3728;   // dark brown hair
-const LIP_CLR  = 0xD4736A;   // lips
+const SKIN     = 0x8D5524;   // dark skin
+const SKIN_LT  = 0xA26D40;   // lighter skin for fills
+const OUTLINE  = 0x4A2B13;   // darker outline
+const HAIR_CLR = 0x1A110D;   // dark brown/black hair
+const LIP_CLR  = 0x803E38;   // lips
 const EYE_CLR  = 0x3D3D3D;   // eyes
 const SHIRT    = 0x5B86E5;   // shirt / torso fill
 const SHIRT_DK = 0x4268B8;   // shirt outline
@@ -168,31 +168,33 @@ export function drawFrame(data: { pose: any[]; leftHand: any[]; rightHand: any[]
     const nose = pose[0];
     if (nose) {
       const headR = lShoulder && rShoulder ? dist(lShoulder, rShoulder) * 0.42 : 40;
+      const headRx = headR * 0.82;   // narrower width for oval
+      const headRy = headR * 1.15;   // taller height for oval
 
-      // Filled head circle
-      gfx.circle(nose.x, nose.y, headR)
-        .fill({ color: SKIN_LT })
-        .stroke({ color: OUTLINE, width: 3 });
-
-      // Hair (physics-based strands on top half)
-      hairStrands.forEach((hair, i) => {
-        const angle = (i / (NUM_HAIRS - 1)) * Math.PI + Math.PI; // top semicircle
-        const rootX = nose.x + Math.cos(angle) * headR;
-        const rootY = nose.y + Math.sin(angle) * headR;
-
-        hair.update(rootX, rootY);
-        gfx!.moveTo(hair.points[0].x, hair.points[0].y)
-          .lineTo(hair.points[1].x, hair.points[1].y)
-          .stroke({ color: HAIR_CLR, width: 4, cap: 'round' });
-      });
-
-      // Neck
+      // Neck (drawn FIRST so the face oval covers the overlap)
       if (lShoulder && rShoulder) {
         const neckBase = lerp(lShoulder, rShoulder, 0.5);
         if (neckBase) {
           drawLimb(gfx, nose, neckBase, 8, SKIN_LT, OUTLINE);
         }
       }
+
+      // Filled head oval (drawn on top of neck)
+      gfx.ellipse(nose.x, nose.y, headRx, headRy)
+        .fill({ color: SKIN_LT })
+        .stroke({ color: OUTLINE, width: 3 });
+
+      // Hair (physics-based strands on top half)
+      hairStrands.forEach((hair, i) => {
+        const angle = (i / (NUM_HAIRS - 1)) * Math.PI + Math.PI; // top semicircle
+        const rootX = nose.x + Math.cos(angle) * headRx;
+        const rootY = nose.y + Math.sin(angle) * headRy;
+
+        hair.update(rootX, rootY);
+        gfx!.moveTo(hair.points[0].x, hair.points[0].y)
+          .lineTo(hair.points[1].x, hair.points[1].y)
+          .stroke({ color: HAIR_CLR, width: 4, cap: 'round' });
+      });
 
       // Facial features
       if (face) {
