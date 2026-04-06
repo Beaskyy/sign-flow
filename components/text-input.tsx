@@ -80,7 +80,8 @@ export const TextInput = ({
   }, []);
 
   useEffect(() => {
-    if (initialText && conversationId && !hasAutoSent.current) {
+    // Only auto-sent if we have a real ID (not 'new')
+    if (initialText && conversationId && conversationId !== "new" && !hasAutoSent.current) {
       hasAutoSent.current = true;
       handleSend(initialText);
     }
@@ -91,26 +92,15 @@ export const TextInput = ({
     const textToSend = textOverride || text;
     if (!textToSend.trim()) return;
 
-    // --- CASE 1: HOMEPAGE (Create & Redirect) ---
-    // This part works: it creates the conversation with the correct title immediately.
-    if (!conversationId) {
-      try {
-        console.log("📝 Creating new conversation...");
-        const newConversation = await createConversation.mutateAsync({
-          title:
-            textToSend.trim().slice(0, 50) +
-            (textToSend.length > 50 ? "..." : ""),
-        });
+    // --- CASE 1: HOMEPAGE or NEW (Immediate Redirect or Wait) ---
+    if (!conversationId || conversationId === "new") {
+      // If we're already on the 'new' route, don't redirect again.
+      // The page itself handles the transition to a real ID.
+      if (conversationId === "new") return;
 
-        const encodedText = encodeURIComponent(textToSend);
-        router.push(
-          `/conversations/${newConversation.id}?initText=${encodedText}`
-        );
-
-        setText(""); 
-      } catch (error) {
-        console.error("Failed to create conversation:", error);
-      }
+      const encodedText = encodeURIComponent(textToSend);
+      router.push(`/conversations/new?initText=${encodedText}`);
+      setText(""); 
       return;
     }
 

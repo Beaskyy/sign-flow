@@ -8,6 +8,7 @@ import { useMessageDetails } from "@/hooks/useMessageDetails";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { parseMotionPayload } from "@/lib/avatar/api-utils";
+import { useCreateConversation } from "@/hooks/useCreateConversation";
 
 export default function ConversationPage() {
   const params = useParams();
@@ -28,13 +29,43 @@ export default function ConversationPage() {
   // NEW: Track if we are processing a translation (controls the UI overlay)
   const [isProcessing, setIsProcessing] = useState(false);
 
+
   // API Hooks
-  const { data: conversation, isLoading: isConversationLoading } = useConversation(conversationId || "");
+  const createConversation = useCreateConversation();
+  const { data: conversation, isLoading: isConversationLoading } = useConversation(
+    conversationId && conversationId !== "new" ? conversationId : ""
+  );
   const { data: messageDetails, isLoading: isDetailsLoading } = useMessageDetails(targetMessageId);
 
-  // ... [Existing URL cleanup effect] ...
+  // Handle immediate navigation: If ID is 'new', create the conversation
   useEffect(() => {
-    if (initText) router.replace(`/conversations/${conversationId}`);
+    if (conversationId === "new") {
+      if (!initText) {
+        router.push("/");
+        return;
+      }
+
+      if (!createConversation.isPending) {
+         const title = initText.trim().slice(0, 50) + (initText.length > 50 ? "..." : "");
+         
+          createConversation.mutateAsync({ title })
+            .then((newConversation) => {
+              // Replace URL with real ID, keeping initText so TextInput can auto-send
+              router.replace(`/conversations/${newConversation.id}?initText=${encodeURIComponent(initText)}`);
+            })
+           .catch((error) => {
+             console.error("Failed to create conversation on mount:", error);
+             router.push("/");
+           });
+      }
+    }
+  }, [conversationId, initText, router, createConversation]);
+
+  // Updated URL cleanup effect: Only clean up if it's NOT 'new' (since 'new' needs it for the redirect)
+  useEffect(() => {
+    if (initText && conversationId && conversationId !== "new") {
+      router.replace(`/conversations/${conversationId}`);
+    }
   }, [initText, conversationId, router]);
 
 
@@ -116,8 +147,8 @@ export default function ConversationPage() {
 
   // --- RENDER ---
   
-  // 1. Show Skeleton if initial page load
-  if (isConversationLoading) {
+  // 1. Show Skeleton if initial page load or creating a new conversation
+  if (isConversationLoading || (conversationId === "new" && createConversation.isPending)) {
     return (
       <main className="flex justify-center items-center lg:ml-10 lg:mr-9 mx-4 h-[calc(100vh-80px)]">
          <ConversationSkeleton />
