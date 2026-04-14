@@ -19,6 +19,7 @@ export async function middleware(request: NextRequest) {
   const publicPaths = [
     "/login",
     "/register",
+    "/welcome",
   ];
 
   // Check if the current path is a public path
