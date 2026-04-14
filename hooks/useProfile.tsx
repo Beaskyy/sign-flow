@@ -7,8 +7,10 @@ import { apiClient } from '@/lib/api'
 interface Profile {
   id: string
   email: string
-  name: string
-  // Add other profile fields based on your API response
+  first_name: string
+  last_name: string
+  full_name: string
+  avatar_url: string | null
 }
 
 export function useProfile() {
@@ -17,7 +19,7 @@ export function useProfile() {
 
   return useQuery({
     queryKey: ['profile'],
-    queryFn: () => apiClient<Profile>('/auth/profile', token),
+    queryFn: () => apiClient<Profile>('/auth/profile/', token),
     enabled: !!token,
   })
 }

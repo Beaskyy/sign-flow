@@ -13,7 +13,7 @@ export function useMessageDetails(messageId: string) {
     queryKey: ["messages", messageId, "details"],
     queryFn: () =>
       apiClient<TextToSignMessageDetail>(
-        `/conversations/messages/${messageId}/details`,
+        `/conversations/messages/${messageId}/details/`,
         token
       ),
     enabled: !!token && !!messageId,

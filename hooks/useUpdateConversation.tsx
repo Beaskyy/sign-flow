@@ -17,7 +17,7 @@ export function useUpdateConversation() {
   return useMutation({
     mutationFn: async ({ id, ...data }: UpdateConversationData) => {
       return apiClient(
-        `/conversations/${id}`,
+        `/conversations/${id}/`,
         token,
         {
           method: 'PATCH',

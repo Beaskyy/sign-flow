@@ -21,13 +21,11 @@ interface User {
 }
 
 interface RegisterResponse {
-  message: string
   user: User
   tokens: {
     access: string
     refresh: string
   }
-  is_new_user: boolean
 }
 
 export function useRegister() {
