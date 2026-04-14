@@ -36,7 +36,7 @@ export function useUploadVideo() {
       )
     },
     onSuccess: () => {
-      // Invalidate library videos list to refetch
+      // Invalidate library videos list
       queryClient.invalidateQueries({ queryKey: ['library-videos'] })
     },
   })

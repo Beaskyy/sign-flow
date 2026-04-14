@@ -36,7 +36,7 @@ export interface TextToSignCompletedEvent {
   pose_count: number;
   glosses: string[];
   gloss_description?: string; // Optional, may be included
-  motion_sequence: MotionSequence;
+  motion_sequence: string; // Now GZIP-Base64 compressed string
 }
 
 /** REST API: GET message details response */
@@ -52,8 +52,8 @@ export interface TextToSignMessageDetail {
   translation_id: string;
   glosses: string[];
   gloss_description: string;
-  motion_sequence: MotionSequence;
-  sign_descriptions: string | MotionSequence; // Now GZIP-Base64 compressed string (or legacy MotionSequence)
+  motion_sequence: string; // Now GZIP-Base64 compressed string
+  sign_descriptions: string; // Now GZIP-Base64 compressed string
   pose_count: number;
   processing_time: number;
   created_at: string;
