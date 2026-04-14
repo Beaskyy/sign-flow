@@ -150,15 +150,18 @@ const handler = NextAuth({
 
           if (!response.ok) {
             console.error("❌ Login failed:", data);
-            throw new Error(data.error || data.message || "Login failed");
+            throw new Error(data.message || data.error || "Login failed");
           }
 
+          // Unwrap the new { success, data } wrapper
+          const payload = data.data || data;
+
           return {
-            id: String(data.user.pk),
-            name: data.user.fullname,
-            email: data.user.email,
-            accessToken: data.tokens.access,
-            refreshToken: data.tokens.refresh,
+            id: String(payload.user.id || payload.user.pk),
+            name: payload.user.full_name || payload.user.fullname,
+            email: payload.user.email,
+            accessToken: payload.tokens.access,
+            refreshToken: payload.tokens.refresh,
           };
         } catch (error) {
           console.error("❌ Auth error:", error);
@@ -230,18 +233,21 @@ const handler = NextAuth({
             return token;
           }
 
+          // Unwrap the new { success, data } wrapper
+          const payload = data.data || data;
+
           // Store tokens with timestamp
           const now = Date.now();
-          token.accessToken = data.tokens.access;
-          token.refreshToken = data.tokens.refresh;
+          token.accessToken = payload.tokens.access;
+          token.refreshToken = payload.tokens.refresh;
           token.accessTokenIssuedAt = now; // Track when access token was issued
           token.refreshTokenIssuedAt = now; // Track when refresh token was issued
           
-          token.sub = String(data.user.pk);
+          token.sub = String(payload.user.id || payload.user.pk);
           token.user = {
-            id: String(data.user.pk),
-            name: data.user.fullname,
-            email: data.user.email,
+            id: String(payload.user.id || payload.user.pk),
+            name: payload.user.full_name || payload.user.fullname,
+            email: payload.user.email,
           };
 
           console.log("✅ Initial login - Tokens issued at:", new Date(now));

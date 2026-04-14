@@ -12,7 +12,7 @@ export function useDeleteConversation() {
   return useMutation({
     mutationFn: async (id: string) => {
       return apiClient(
-        `/conversations/${id}`,
+        `/conversations/${id}/`,
         token,
         {
           method: 'DELETE',

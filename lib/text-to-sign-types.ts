@@ -53,7 +53,7 @@ export interface TextToSignMessageDetail {
   glosses: string[];
   gloss_description: string;
   motion_sequence: MotionSequence;
-  sign_descriptions: MotionSequence;
+  sign_descriptions: string | MotionSequence; // Now GZIP-Base64 compressed string (or legacy MotionSequence)
   pose_count: number;
   processing_time: number;
   created_at: string;

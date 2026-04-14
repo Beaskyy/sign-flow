@@ -6,24 +6,28 @@ import { apiClient } from '@/lib/api'
 
 interface Message {
   id: string;
-  conversation_id: string;
-  message_type: string;
-  status: string;
-  input_preview: string;
-  output_preview: string;
+  sender?: string;
+  conversation_id?: string;
+  message_type?: string;
+  status?: string;
+  input_preview?: string;
+  output_preview?: string;
+  text_content?: string;
+  sign_descriptions?: string; // Now GZIP-Base64 compressed string
   created_at: string;
-  completed_at: string;
-  message_type_display: string;
-  status_display: string;
+  completed_at?: string;
+  message_type_display?: string;
+  status_display?: string;
 }
 
 interface Conversation {
   id: string;
   title?: string;
-  message_count: number;
+  messages_count?: number;
+  message_count?: number; // Keep for backward compat
   created_at: string;
   updated_at: string;
-  messages: Message[]; // Important: Added this
+  messages?: Message[];
 }
 
 interface ConversationsResponse {
@@ -44,12 +48,14 @@ export function useConversations() {
         url += `?cursor=${pageParam}`
       }
       
+      // apiClient now auto-unwraps { success, data } — response is the data array directly
       const response = await apiClient<any>(url, token)
       
-      // Transform based on your API response structure
-      // Assuming your API returns conversations array and pagination info
+      // Handle both array response and paginated object response
+      const conversations = Array.isArray(response) ? response : (response.results || response)
+      
       return {
-        conversations: response.data || response,
+        conversations,
         nextCursor: response.next_cursor || response.nextCursor,
         hasMore: !!response.next_cursor || !!response.nextCursor
       }

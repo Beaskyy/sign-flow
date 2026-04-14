@@ -5,17 +5,13 @@ import { useSession } from 'next-auth/react'
 import { apiClient } from '@/lib/api'
 
 interface UploadVideoRequest {
-  video_file: File
-  title: string
+  video: File
+  gloss: string
+  region: string
 }
 
 interface UploadVideoResponse {
-  id: string
-  title: string
-  video_url: string
-  status: string
-  created_at: string
-  // Add other response fields
+  video_id: string
 }
 
 export function useUploadVideo() {
@@ -26,11 +22,12 @@ export function useUploadVideo() {
   return useMutation({
     mutationFn: async (data: UploadVideoRequest) => {
       const formData = new FormData()
-      formData.append('video_file', data.video_file)
-      formData.append('title', data.title)
+      formData.append('video', data.video)
+      formData.append('gloss', data.gloss)
+      formData.append('region', data.region)
 
       return apiClient<UploadVideoResponse>(
-        '/videos/',
+        '/translation/admin/upload-sign-video/',
         token,
         {
           method: 'POST',
@@ -39,8 +36,8 @@ export function useUploadVideo() {
       )
     },
     onSuccess: () => {
-      // Invalidate videos list if you have one
-      queryClient.invalidateQueries({ queryKey: ['videos'] })
+      // Invalidate library videos list to refetch
+      queryClient.invalidateQueries({ queryKey: ['library-videos'] })
     },
   })
 }
