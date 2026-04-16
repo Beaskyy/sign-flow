@@ -153,12 +153,10 @@ const handler = NextAuth({
             throw new Error(data.message || data.error || "Login failed");
           }
 
-          // Unwrap the new { success, data } wrapper
-          const payload = data.data || data;
-
+          const payload = data.data; // Unwrap global wrapper
           return {
-            id: String(payload.user.id || payload.user.pk),
-            name: payload.user.full_name || payload.user.fullname,
+            id: String(payload.user.id),
+            name: payload.user.full_name,
             email: payload.user.email,
             accessToken: payload.tokens.access,
             refreshToken: payload.tokens.refresh,
@@ -233,8 +231,7 @@ const handler = NextAuth({
             return token;
           }
 
-          // Unwrap the new { success, data } wrapper
-          const payload = data.data || data;
+          const payload = data.data; // Unwrap global wrapper
 
           // Store tokens with timestamp
           const now = Date.now();
@@ -243,10 +240,10 @@ const handler = NextAuth({
           token.accessTokenIssuedAt = now; // Track when access token was issued
           token.refreshTokenIssuedAt = now; // Track when refresh token was issued
           
-          token.sub = String(payload.user.id || payload.user.pk);
+          token.sub = String(payload.user.id);
           token.user = {
-            id: String(payload.user.id || payload.user.pk),
-            name: payload.user.full_name || payload.user.fullname,
+            id: String(payload.user.id),
+            name: payload.user.full_name,
             email: payload.user.email,
           };
 
