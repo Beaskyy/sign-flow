@@ -16,6 +16,7 @@ import {
   type BoneRotationFrame,
 } from "./bone-rotation-avatar";
 import { isLandmarkFrame, isLegacyFrame } from "@/lib/text-to-sign-types";
+import { parseMotionPayload } from "@/lib/avatar/api-utils";
 
 interface SignLanguageModalProps {
   messageId: string | null;
@@ -28,8 +29,14 @@ export function SignLanguageModal({
   isOpen,
   onClose,
 }: SignLanguageModalProps) {
-  const { data: details, isLoading } = useMessageDetails(messageId || "");
-  const [isPlaying, setIsPlaying] = useState(false);
+   const { data: details, isLoading } = useMessageDetails(messageId || "");
+   const [isPlaying, setIsPlaying] = useState(false);
+ 
+   const seq = useMemo(() => {
+     if (!details?.motion_sequence) return [];
+     const payload = parseMotionPayload(details.motion_sequence);
+     return payload?.sequence ?? [];
+   }, [details?.motion_sequence]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -48,8 +55,7 @@ export function SignLanguageModal({
             </div>
           ) : (
             <div className="w-full h-full min-h-[300px]">
-              {(() => {
-                const seq = details?.motion_sequence?.sequence ?? [];
+               {(() => {
                 if (
                   seq.length > 0 &&
                   seq.some((f: unknown) => isLandmarkFrame(f))
